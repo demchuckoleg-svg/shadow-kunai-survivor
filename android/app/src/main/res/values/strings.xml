@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Shadow Kunai</string>
+    <string name="title_activity_main">Shadow Kunai</string>
+    <string name="package_name">com.shadowkunai.survivor</string>
+    <string name="custom_url_scheme">com.shadowkunai.survivor</string>
+</resources>

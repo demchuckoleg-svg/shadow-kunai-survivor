@@ -30,9 +30,11 @@ const BLEED_DPS = 2.5;
 const HIT_FLASH_TIME = 0.06;
 
 export type KillListener = (enemy: EnemyEntity) => void;
+export type HitListener = (crit: boolean) => void;
 
 export class CombatSystem {
   private readonly killListeners = new Set<KillListener>();
+  private readonly hitListeners = new Set<HitListener>();
 
   constructor(
     private readonly state: GameState,
@@ -43,6 +45,11 @@ export class CombatSystem {
   onKill(listener: KillListener): () => void {
     this.killListeners.add(listener);
     return () => this.killListeners.delete(listener);
+  }
+
+  onHit(listener: HitListener): () => void {
+    this.hitListeners.add(listener);
+    return () => this.hitListeners.delete(listener);
   }
 
   damageEnemy(enemy: EnemyEntity, baseDamage: number, opts: DamageOptions = {}): DamageResult {
@@ -92,6 +99,7 @@ export class CombatSystem {
       this.world.spawnDamageText(enemy.x, enemy.y - enemy.radius, damage, crit, opts.color ?? 0xffffff);
     }
     if (crit) this.camera.shake(2.5, 0.12);
+    for (const listener of this.hitListeners) listener(crit);
 
     if (enemy.hp <= 0) {
       this.killEnemy(enemy, opts.sourceSkill ?? null);

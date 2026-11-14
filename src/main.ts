@@ -17,6 +17,7 @@ import { EntityRenderer } from '@/render/EntityRenderer';
 import { VfxRenderer } from '@/render/VfxRenderer';
 import { FloatingTextRenderer } from '@/render/FloatingText';
 import { UIManager } from '@/ui/UIManager';
+import { SoundEngine } from '@/audio/SoundEngine';
 import type { SkillId } from '@/types/game';
 
 const GAME_ROOT_ID = 'game-root';
@@ -94,6 +95,11 @@ async function boot(): Promise<void> {
   app.stage.addChild(worldContainer);
 
   const joystick = new TouchJoystick(state.input);
+  const sound = new SoundEngine();
+  const unlockAudio = (): void => sound.unlock();
+  window.addEventListener('pointerdown', unlockAudio, { once: true });
+  window.addEventListener('keydown', unlockAudio, { once: true });
+  combat.onHit((crit) => sound.playHit(crit));
 
   let pendingLevels = 0;
   let levelUpOpen = false;
@@ -164,20 +170,30 @@ async function boot(): Promise<void> {
     switch (event.type) {
       case 'levelUp':
         pendingLevels += 1;
+        sound.playLevelUp();
         if (!levelUpOpen && state.phase === 'playing') openLevelUp();
         break;
       case 'playerDamaged':
         camera.shake(7, 0.28);
+        sound.playHurt();
+        break;
+      case 'xpGained':
+        sound.playXp();
         break;
       case 'bossSpawned':
         camera.shake(12, 0.6);
+        sound.playBoss();
+        break;
+      case 'ultimateActivated':
+        sound.playUltimate();
+        break;
+      case 'synergyForged':
+        camera.shake(9, 0.45);
+        sound.playSynergy();
         break;
       case 'runEnded':
         joystick.setEnabled(false);
         ui.showGameOver(state.stats);
-        break;
-      case 'synergyForged':
-        camera.shake(9, 0.45);
         break;
       default:
         break;
