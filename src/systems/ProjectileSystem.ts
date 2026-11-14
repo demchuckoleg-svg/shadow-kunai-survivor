@@ -11,6 +11,7 @@ import type {
   ProjectileEntity,
   ZoneEntity,
 } from '@/types/game';
+import { hasAugment } from '@/data/skills';
 import type { CombatSystem } from './CombatSystem';
 import type { PlayerSystem } from './PlayerSystem';
 
@@ -274,6 +275,25 @@ export class ProjectileSystem {
   }
 
   private applyZoneTick(zone: ZoneEntity): void {
+    if (zone.kind === 'smoke') {
+      const smokeSkill = this.state.getSkill('smoke');
+      if (smokeSkill && hasAugment(smokeSkill, 10) && Math.random() < 0.45) {
+        const x = zone.x + (Math.random() * 2 - 1) * zone.radius * 0.45;
+        const y = zone.y + (Math.random() * 2 - 1) * zone.radius * 0.45;
+        this.world.spawnVfx({
+          kind: 'slash',
+          x,
+          y,
+          fromX: x - 20,
+          fromY: y - 14,
+          toX: x + 20,
+          toY: y + 14,
+          color: 0xe63946,
+          life: 0.18,
+          width: 4,
+        });
+      }
+    }
     if (zone.kind === 'smoke' && Math.random() < 0.65) {
       const angle = Math.random() * Math.PI * 2;
       const distance = Math.random() * zone.radius * 0.7;
