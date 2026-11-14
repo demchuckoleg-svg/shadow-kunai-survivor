@@ -19,6 +19,4 @@ export function button(className: string, label: string): HTMLButtonElement {
 }
 
 export const SCREEN_CLASS =
-  'fixed inset-0 z-50 flex flex-col bg-[#07070d]/95 backdrop-blur-md text-[#f4f4f8] select-none';
-export const CARD_CLASS =
-  'relative flex flex-col gap-1 rounded-2xl border p-3 text-left transition active:scale-[0.98]';
+  'fixed inset-0 z-50 flex flex-col bg-ink/95 backdrop-blur-md text-bone select-none';

@@ -1,14 +1,42 @@
+@import '@fontsource/cinzel/latin-700.css';
+@import '@fontsource/cinzel/latin-900.css';
+@import '@fontsource/pt-serif/cyrillic-700.css';
+@import '@fontsource/pt-serif/latin-700.css';
+@import '@fontsource/noto-serif-jp/japanese-700.css';
+@import '@fontsource/jetbrains-mono/latin-400.css';
+@import '@fontsource/jetbrains-mono/latin-700.css';
 @import 'tailwindcss';
+
+@theme {
+  --color-ink: #0b0c10;
+  --color-slate: #14161d;
+  --color-crimson: #e63946;
+  --color-gold: #d4af37;
+  --color-goldlight: #f3e5ab;
+  --color-jade: #2ec4b6;
+  --color-bone: #f1faee;
+  --color-ash: #8d99ae;
+  --color-outline: #050507;
+
+  --font-display: 'Cinzel', 'PT Serif', 'Noto Serif JP', Georgia, serif;
+  --font-body: 'PT Serif', 'Noto Serif JP', Georgia, serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+}
 
 :root {
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
-  --ink: #07070d;
-  --blood: #ff2e4d;
-  --cyan: #35e6ff;
-  --gold: #ffc94a;
+  --chamfer: polygon(
+    12px 0,
+    100% 0,
+    100% calc(100% - 12px),
+    calc(100% - 12px) 100%,
+    0 100%,
+    0 12px
+  );
+  --chamfer-sm: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
 }
 
 * {
@@ -21,9 +49,9 @@ body {
   padding: 0;
   height: 100%;
   overflow: hidden;
-  background: var(--ink);
-  color: #f4f4f8;
-  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: #0b0c10;
+  color: #f1faee;
+  font-family: var(--font-body);
   overscroll-behavior: none;
   -webkit-tap-highlight-color: transparent;
   -webkit-user-select: none;
@@ -43,15 +71,132 @@ body {
   touch-action: none;
 }
 
+/* Ink vignette + paper grain above the canvas, below the UI. */
+#game-root::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  background: radial-gradient(ellipse at center, transparent 54%, rgba(5, 5, 7, 0.62) 100%);
+}
+
 #ui-root {
   position: fixed;
   inset: 0;
   pointer-events: none;
-  padding:
-    var(--safe-top) var(--safe-right) var(--safe-bottom)
-    var(--safe-left);
+  padding: var(--safe-top) var(--safe-right) var(--safe-bottom) var(--safe-left);
 }
 
 #ui-root > * {
   pointer-events: auto;
+}
+
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  pointer-events: none;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: overlay;
+}
+
+@layer utilities {
+  .chamfer {
+    clip-path: var(--chamfer);
+  }
+
+  .chamfer-sm {
+    clip-path: var(--chamfer-sm);
+  }
+
+  .neo-panel {
+    position: relative;
+    background: #14161d;
+    border: 1px solid rgba(141, 153, 174, 0.35);
+    clip-path: var(--chamfer);
+  }
+
+  .neo-panel::before {
+    content: '';
+    position: absolute;
+    inset: 3px;
+    border: 1px solid rgba(241, 250, 238, 0.12);
+    clip-path: inherit;
+    pointer-events: none;
+  }
+
+  .neo-panel--gold {
+    border-color: rgba(212, 175, 55, 0.7);
+  }
+
+  .neo-panel--gold::before {
+    border-color: rgba(243, 229, 171, 0.5);
+  }
+
+  .neo-panel--crimson {
+    border-color: rgba(230, 57, 70, 0.65);
+  }
+
+  .neo-panel--crimson::before {
+    border-color: rgba(230, 57, 70, 0.35);
+  }
+
+  .neo-btn {
+    position: relative;
+    border: 1px solid rgba(141, 153, 174, 0.55);
+    background: #14161d;
+    color: #f1faee;
+    clip-path: var(--chamfer-sm);
+    font-family: var(--font-mono);
+    letter-spacing: 0.08em;
+    transition:
+      transform 70ms ease-out,
+      background-color 70ms ease-out,
+      border-color 70ms ease-out;
+  }
+
+  .neo-btn:active {
+    transform: scale(0.95);
+  }
+
+  .neo-btn:disabled {
+    opacity: 0.4;
+  }
+
+  .neo-btn.ui-flash {
+    animation: ui-flash 60ms ease-out;
+  }
+
+  .neo-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(212, 175, 55, 0.5) transparent;
+  }
+
+  .ink-rule {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.55), transparent);
+  }
+}
+
+@keyframes ui-flash {
+  0% {
+    background-color: rgba(230, 57, 70, 0.92);
+    border-color: #e63946;
+  }
+  100% {
+    background-color: #14161d;
+  }
+}
+
+@keyframes ink-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
 }

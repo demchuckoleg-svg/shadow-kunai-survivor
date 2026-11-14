@@ -49,6 +49,7 @@ export type GameEventType =
   | 'ultimateUnlocked'
   | 'ultimateReady'
   | 'ultimateActivated'
+  | 'ultimateLanded'
   | 'bossSpawned'
   | 'runEnded';
 

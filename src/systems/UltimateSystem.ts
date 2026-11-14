@@ -283,6 +283,7 @@ export class UltimateSystem {
     const player = this.state.player;
     this.camera.setZoom(1);
     this.camera.shake(16, 0.55);
+    this.state.emit('ultimateLanded');
 
     this.world.spawnVfx({
       kind: 'shockwave',

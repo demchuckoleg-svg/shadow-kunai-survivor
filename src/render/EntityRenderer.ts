@@ -8,7 +8,7 @@ import type { GameState } from '@/core/GameState';
 import type { World } from '@/core/World';
 import type { EnemyArchetypeId, ProjectileKind } from '@/types/game';
 import { ULTIMATE_CONFIG } from '@/data/ultimate';
-import type { TextureFactory } from './TextureFactory';
+import type { ProceduralSprites } from '@/assets/ProceduralSprites';
 
 const ENEMY_TEXTURE_RADIUS = 16;
 
@@ -34,7 +34,7 @@ export class EntityRenderer {
 
   constructor(
     private readonly world: World,
-    private readonly textures: TextureFactory,
+    private readonly textures: ProceduralSprites,
   ) {
     this.entityLayer.sortableChildren = true;
     this.container.addChild(

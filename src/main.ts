@@ -1,4 +1,4 @@
-import { Application, Container, Graphics } from 'pixi.js';
+import { Application, Container } from 'pixi.js';
 import './style.css';
 import { GameState } from '@/core/GameState';
 import { Camera } from '@/core/Camera';
@@ -12,7 +12,10 @@ import { ProjectileSystem } from '@/systems/ProjectileSystem';
 import { UltimateSystem } from '@/systems/UltimateSystem';
 import { SkillSystem } from '@/systems/SkillSystem';
 import { ProgressionSystem } from '@/systems/ProgressionSystem';
-import { TextureFactory } from '@/render/TextureFactory';
+import { ProceduralSprites } from '@/assets/ProceduralSprites';
+import { ArenaRenderer } from '@/render/ArenaRenderer';
+import { TrailRenderer } from '@/render/TrailRenderer';
+import { JuiceController } from '@/render/JuiceController';
 import { EntityRenderer } from '@/render/EntityRenderer';
 import { VfxRenderer } from '@/render/VfxRenderer';
 import { FloatingTextRenderer } from '@/render/FloatingText';
@@ -22,26 +25,6 @@ import type { SkillId } from '@/types/game';
 
 const GAME_ROOT_ID = 'game-root';
 const UI_ROOT_ID = 'ui-root';
-const ARENA_HALF = 3400;
-
-function createArena(): Container {
-  const arena = new Container();
-  const floor = new Graphics();
-  floor.rect(-ARENA_HALF, -ARENA_HALF, ARENA_HALF * 2, ARENA_HALF * 2).fill({ color: 0x080811 });
-
-  const grid = new Graphics();
-  for (let x = -ARENA_HALF; x <= ARENA_HALF; x += 128) {
-    grid.moveTo(x, -ARENA_HALF).lineTo(x, ARENA_HALF);
-  }
-  for (let y = -ARENA_HALF; y <= ARENA_HALF; y += 128) {
-    grid.moveTo(-ARENA_HALF, y).lineTo(ARENA_HALF, y);
-  }
-  grid.stroke({ width: 1, color: 0x161d2e, alpha: 0.7 });
-
-  arena.addChild(floor, grid);
-  return arena;
-}
-
 async function boot(): Promise<void> {
   const host = document.getElementById(GAME_ROOT_ID);
   const uiRoot = document.getElementById(UI_ROOT_ID);
@@ -64,6 +47,7 @@ async function boot(): Promise<void> {
   const world = new World();
   const camera = new Camera();
   camera.snapTo(state.player);
+  const juice = new JuiceController(camera);
 
   const playerSystem = new PlayerSystem(state, world);
   const combat = new CombatSystem(state, world, camera);
@@ -79,7 +63,9 @@ async function boot(): Promise<void> {
   }));
   const progression = new ProgressionSystem(state, skillSystem);
 
-  const textures = new TextureFactory(app.renderer);
+  const textures = new ProceduralSprites();
+  const arena = new ArenaRenderer(textures);
+  const trailRenderer = new TrailRenderer(world);
   const entityRenderer = new EntityRenderer(world, textures);
   const vfxRenderer = new VfxRenderer(world, textures);
   const floatingText = new FloatingTextRenderer(world);
@@ -87,7 +73,8 @@ async function boot(): Promise<void> {
   const worldContainer = new Container();
   worldContainer.sortableChildren = true;
   worldContainer.addChild(
-    createArena(),
+    arena.container,
+    trailRenderer.container,
     entityRenderer.container,
     vfxRenderer.container,
     floatingText.container,
@@ -99,7 +86,26 @@ async function boot(): Promise<void> {
   const unlockAudio = (): void => sound.unlock();
   window.addEventListener('pointerdown', unlockAudio, { once: true });
   window.addEventListener('keydown', unlockAudio, { once: true });
-  combat.onHit((crit) => sound.playHit(crit));
+  combat.onHit((info) => {
+    sound.playHit(info.crit);
+    juice.impact(info.crit ? 3.2 : 1.6, info.dirX, info.dirY, info.heavy ? 0.035 : 0);
+  });
+
+  // Tactile UI: crimson flash + short vibration + synthesized click on every button.
+  document.addEventListener(
+    'pointerdown',
+    (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const node = target.closest('button');
+      if (!node) return;
+      navigator.vibrate?.(12);
+      sound.playUiClick();
+      node.classList.add('ui-flash');
+      window.setTimeout(() => node.classList.remove('ui-flash'), 60);
+    },
+    { passive: true },
+  );
 
   let pendingLevels = 0;
   let levelUpOpen = false;
@@ -107,6 +113,7 @@ async function boot(): Promise<void> {
 
   const startRun = (loadout: SkillId[]): void => {
     world.reset();
+    trailRenderer.clear();
     camera.reset();
     enemySystem.reset();
     skillSystem.reset();
@@ -124,6 +131,7 @@ async function boot(): Promise<void> {
   const restartRun = (): void => {
     loop.resume();
     world.reset();
+    trailRenderer.clear();
     state.phase = 'menu';
     joystick.setEnabled(false);
     ui.showDraft();
@@ -174,21 +182,25 @@ async function boot(): Promise<void> {
         if (!levelUpOpen && state.phase === 'playing') openLevelUp();
         break;
       case 'playerDamaged':
-        camera.shake(7, 0.28);
+        juice.impact(7, 0, 0, 0.03);
         sound.playHurt();
         break;
       case 'xpGained':
         sound.playXp();
         break;
       case 'bossSpawned':
-        camera.shake(12, 0.6);
+        juice.impact(12, 0, 0, 0.05);
         sound.playBoss();
         break;
       case 'ultimateActivated':
+        juice.hitStop(0.05);
         sound.playUltimate();
         break;
+      case 'ultimateLanded':
+        juice.hitStop(0.06);
+        break;
       case 'synergyForged':
-        camera.shake(9, 0.45);
+        juice.impact(9, 0, 0, 0.05);
         sound.playSynergy();
         break;
       case 'runEnded':
@@ -210,6 +222,7 @@ async function boot(): Promise<void> {
       ultimateSystem.update(dt);
       if (state.autoUlt && ultimateSystem.canActivate()) ultimateSystem.tryActivate();
       projectileSystem.update(dt);
+      trailRenderer.update(dt);
       camera.follow(state.player, dt);
       camera.update(dt);
 
@@ -220,6 +233,7 @@ async function boot(): Promise<void> {
       }
     },
     render: (_alpha, frameDt) => {
+      loop.timeScale = juice.tick(frameDt);
       const width = app.screen.width;
       const height = app.screen.height;
       const cam = camera.state;
@@ -228,6 +242,7 @@ async function boot(): Promise<void> {
         width / 2 - cam.x * cam.zoom + cam.shakeX,
         height / 2 - cam.y * cam.zoom + cam.shakeY,
       );
+      arena.update(frameDt, camera, width, height, state.timer.elapsed);
       entityRenderer.update(state, state.timer.elapsed);
       vfxRenderer.update(frameDt);
       floatingText.update(frameDt);
@@ -277,6 +292,7 @@ async function boot(): Promise<void> {
       progression,
       ultimateSystem,
       camera,
+      sprites: textures,
     };
   }
 

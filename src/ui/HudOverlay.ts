@@ -1,12 +1,14 @@
 /**
- * HUD: HP, XP/уровень, таймер, убийства, скиллы и кнопка ульты 50 ур.
- * Зависимости: GameState, data/skills, data/synergies, types.
+ * Combat HUD: HP/XP, level, timer, kills, active schools, ultimate button.
+ * Neo-Edo ink styling; DOM updates at 5 Hz, never per frame.
  */
 
 import type { GameState } from '@/core/GameState';
 import type { SkillInstance } from '@/types/game';
 import { getSkillDefinition } from '@/data/skills';
 import { getSynergyRecipe } from '@/data/synergies';
+import { PALETTE } from '@/assets/palette';
+import { skillIcon, uiIcon } from '@/assets/SvgIcons';
 import { button, el } from './dom';
 
 export class HudOverlay {
@@ -20,72 +22,105 @@ export class HudOverlay {
   private readonly killsText: HTMLDivElement;
   private readonly skillList: HTMLDivElement;
   private readonly ultButton: HTMLButtonElement;
+  private readonly ultCharge: HTMLSpanElement;
   private readonly autoButton: HTMLButtonElement;
   private skillSignature = '';
 
   constructor(onUltimate: () => void, onToggleAuto: (enabled: boolean) => void) {
-    this.root = el('div', 'fixed inset-0 z-20 pointer-events-none hidden');
+    this.root = el('div', 'fixed inset-0 z-20 hidden');
     this.root.style.pointerEvents = 'none';
     this.root.style.padding =
       'max(calc(env(safe-area-inset-top,0px) + 10px), 28px) max(calc(env(safe-area-inset-right,0px) + 12px), 12px) max(calc(env(safe-area-inset-bottom,0px) + 16px), 18px) max(calc(env(safe-area-inset-left,0px) + 12px), 12px)';
 
-    const top = el('div', 'flex items-start justify-between gap-3');
+    const top = el('div', 'relative flex items-start justify-between gap-3');
 
-    const left = el('div', 'flex flex-col gap-1 min-w-0 w-[46%] max-w-[230px]');
+    const left = el('div', 'flex w-[48%] max-w-[250px] flex-col gap-1');
     const levelRow = el('div', 'flex items-center gap-2');
-    const levelBadge = el('div', 'grid place-items-center h-9 w-9 rounded-xl border border-[#35e6ff]/50 bg-[#071820] text-[#35e6ff] font-black text-sm');
-    this.levelText = el('div', 'text-[#35e6ff] font-black text-sm', 'УР 1');
-    levelBadge.appendChild(el('span', '', '忍'));
+    const levelBadge = el('div', 'grid h-10 w-10 place-items-center font-display text-lg font-bold text-gold');
+    levelBadge.style.background = PALETTE.slate;
+    levelBadge.style.clipPath =
+      'polygon(9px 0, 100% 0, 100% calc(100% - 9px), calc(100% - 9px) 100%, 0 100%, 0 9px)';
+    levelBadge.style.boxShadow = `inset 0 0 0 1px ${PALETTE.gold}`;
+    levelBadge.textContent = '忍';
+    this.levelText = el('div', 'font-mono text-[11px] font-bold tracking-[0.18em] text-goldlight', 'УР 1');
     levelRow.append(levelBadge, this.levelText);
 
-    const hpBar = el('div', 'h-3 w-full rounded-full bg-white/10 overflow-hidden border border-white/10');
-    this.hpFill = el('div', 'h-full rounded-full');
+    const hpRow = el('div', 'flex items-center gap-1.5');
+    const hpIcon = el('span', 'shrink-0 leading-none');
+    hpIcon.innerHTML = uiIcon('hp', 20);
+    const hpBar = el('div', 'chamfer-sm h-3 flex-1 overflow-hidden border border-ash/40');
+    hpBar.style.background = 'rgba(241,250,238,0.08)';
+    this.hpFill = el('div', 'h-full');
     this.hpFill.style.width = '100%';
-    this.hpFill.style.background = 'linear-gradient(90deg,#ff2e4d,#ff7a8f)';
+    this.hpFill.style.background = PALETTE.crimson;
     hpBar.appendChild(this.hpFill);
-    this.hpText = el('div', 'text-[10px] font-bold text-[#ffb3c1] tabular-nums', '100 / 100');
+    hpRow.append(hpIcon, hpBar);
+    this.hpText = el('div', 'pl-6 font-mono text-[9px] tabular-nums text-ash', '100 / 100');
 
-    const xpBar = el('div', 'h-1.5 w-full rounded-full bg-white/10 overflow-hidden');
-    this.xpFill = el('div', 'h-full rounded-full');
+    const xpRow = el('div', 'flex items-center gap-1.5');
+    const xpIcon = el('span', 'shrink-0 leading-none');
+    xpIcon.innerHTML = uiIcon('xp', 18);
+    const xpBar = el('div', 'chamfer-sm h-1.5 flex-1 overflow-hidden border border-jade/30');
+    xpBar.style.background = 'rgba(46,196,182,0.10)';
+    this.xpFill = el('div', 'h-full');
     this.xpFill.style.width = '0%';
-    this.xpFill.style.background = 'linear-gradient(90deg,#35e6ff,#9be15d)';
+    this.xpFill.style.background = PALETTE.jade;
     xpBar.appendChild(this.xpFill);
-    this.xpText = el('div', 'text-[9px] text-[#8b93a7] tabular-nums', '0 / 10 XP');
+    xpRow.append(xpIcon, xpBar);
+    this.xpText = el('div', 'pl-6 font-mono text-[8px] tabular-nums text-ash', '0 / 5 XP');
 
-    left.append(levelRow, hpBar, this.hpText, xpBar, this.xpText);
+    left.append(levelRow, hpRow, this.hpText, xpRow, this.xpText);
 
-    this.timerText = el('div', 'text-xl font-black tabular-nums tracking-wider text-[#f4f4f8] drop-shadow-[0_0_12px_rgba(53,230,255,0.35)]', '0:00');
+    const timerBox = el('div', 'absolute left-1/2 top-0 flex -translate-x-1/2 flex-col items-center');
+    const timerIcon = el('span', 'leading-none');
+    timerIcon.innerHTML = uiIcon('timer', 22);
+    this.timerText = el('div', 'font-mono text-xl font-bold tabular-nums tracking-[0.12em] text-bone', '0:00');
+    timerBox.append(timerIcon, this.timerText);
 
     const right = el('div', 'flex flex-col items-end gap-0.5');
-    right.append(
-      el('div', 'text-[9px] tracking-[0.25em] text-[#8b93a7] font-bold', 'УБИЙСТВА'),
-      (this.killsText = el('div', 'text-xl font-black tabular-nums text-[#ffc94a]', '0')),
-    );
+    const killsIcon = el('span', 'leading-none');
+    killsIcon.innerHTML = uiIcon('kills', 22);
+    this.killsText = el('div', 'font-mono text-xl font-bold tabular-nums text-gold', '0');
+    right.append(killsIcon, el('div', 'font-mono text-[8px] tracking-[0.24em] text-ash', 'УБИЙСТВА'), this.killsText);
 
-    top.append(left, this.timerText, right);
+    top.append(left, timerBox, right);
 
     this.skillList = el('div', 'absolute left-3 bottom-4 flex flex-col gap-1');
     this.skillList.style.paddingLeft = 'var(--safe-left)';
     this.skillList.style.paddingBottom = 'var(--safe-bottom)';
 
     this.ultButton = button(
-      'absolute right-4 bottom-6 h-[86px] w-[86px] rounded-full grid place-items-center whitespace-pre text-center font-black text-[13px] leading-tight text-[#ffe9ee] transition disabled:opacity-50 pointer-events-auto hidden',
-      'УЛЬТ\n0%',
+      'absolute right-4 bottom-6 hidden h-[88px] w-[88px] flex flex-col items-center justify-center gap-0.5 text-center transition',
+      '',
     );
-    this.ultButton.style.background =
-      'radial-gradient(circle at 35% 30%, rgba(255,46,77,0.9), rgba(90,6,24,0.95))';
-    this.ultButton.style.border = '2px solid rgba(255,120,140,0.85)';
-    this.ultButton.style.boxShadow = '0 0 30px rgba(255,46,77,0.55)';
+    this.ultButton.style.pointerEvents = 'auto';
     this.ultButton.style.right = 'calc(18px + env(safe-area-inset-right,0px))';
     this.ultButton.style.bottom = 'max(calc(22px + env(safe-area-inset-bottom,0px)), 28px)';
+    this.ultButton.style.background = PALETTE.crimson;
+    this.ultButton.style.border = `2px solid ${PALETTE.gold}`;
+    this.ultButton.style.clipPath =
+      'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)';
+    this.ultButton.style.boxShadow = 'inset 0 0 0 4px rgba(11,12,16,0.45)';
+    const ultIcon = el('span', 'leading-none');
+    ultIcon.innerHTML = uiIcon('ult', 38);
+    this.ultCharge = el('span', 'font-mono text-[10px] font-bold tracking-widest text-bone', '0%');
+    this.ultButton.append(ultIcon, this.ultCharge);
     this.ultButton.addEventListener('click', onUltimate);
 
     this.autoButton = button(
-      'absolute right-[112px] bottom-6 rounded-full border border-white/20 bg-black/50 px-3 py-1.5 text-[10px] font-black tracking-wider text-[#9aa3b8] pointer-events-auto hidden',
+      'absolute bottom-6 hidden flex items-center gap-1 border border-ash/40 bg-ink/80 px-2.5 py-1.5 transition',
       'АВТО',
     );
-    this.autoButton.style.right = 'calc(112px + env(safe-area-inset-right,0px))';
+    this.autoButton.style.pointerEvents = 'auto';
+    this.autoButton.style.right = 'calc(116px + env(safe-area-inset-right,0px))';
     this.autoButton.style.bottom = 'max(calc(28px + env(safe-area-inset-bottom,0px)), 34px)';
+    this.autoButton.style.clipPath = 'var(--chamfer-sm)';
+    this.autoButton.style.fontFamily = 'var(--font-mono)';
+    this.autoButton.style.fontSize = '9px';
+    this.autoButton.style.letterSpacing = '0.16em';
+    const autoIcon = el('span', 'leading-none');
+    autoIcon.innerHTML = uiIcon('auto', 14);
+    this.autoButton.prepend(autoIcon);
     this.autoButton.addEventListener('click', () => {
       const next = !this.autoButton.classList.contains('auto-on');
       this.setAuto(next);
@@ -106,8 +141,11 @@ export class HudOverlay {
   setAuto(enabled: boolean): void {
     this.autoButton.classList.toggle('auto-on', enabled);
     this.autoButton.textContent = enabled ? 'АВТО ВКЛ' : 'АВТО';
-    this.autoButton.style.color = enabled ? '#35e6ff' : '#9aa3b8';
-    this.autoButton.style.borderColor = enabled ? 'rgba(53,230,255,0.7)' : 'rgba(255,255,255,0.2)';
+    const icon = el('span', 'leading-none');
+    icon.innerHTML = uiIcon('auto', 14);
+    this.autoButton.prepend(icon);
+    this.autoButton.style.color = enabled ? PALETTE.jade : PALETTE.ash;
+    this.autoButton.style.borderColor = enabled ? PALETTE.jade : 'rgba(141,153,174,0.4)';
   }
 
   update(state: GameState, canUltimate: boolean, ultimateActive: boolean): void {
@@ -115,6 +153,8 @@ export class HudOverlay {
     const hpPct = Math.max(0, Math.min(100, (player.hp / player.maxHp) * 100));
     this.hpFill.style.width = `${hpPct}%`;
     this.hpText.textContent = `${Math.ceil(player.hp)} / ${player.maxHp}`;
+    this.hpFill.style.background = hpPct <= 30 ? PALETTE.gold : PALETTE.crimson;
+
     const xpPct = Math.max(0, Math.min(100, (player.xp / Math.max(1, player.nextLevelXp)) * 100));
     this.xpFill.style.width = `${xpPct}%`;
     this.xpText.textContent = `${Math.floor(player.xp)} / ${player.nextLevelXp} XP`;
@@ -129,9 +169,8 @@ export class HudOverlay {
     this.autoButton.classList.toggle('hidden', !player.ultUnlocked);
     if (player.ultUnlocked) {
       this.ultButton.disabled = !canUltimate && !ultimateActive;
-      this.ultButton.textContent = ultimateActive
-        ? 'ОГИ!'
-        : `УЛЬТ\n${Math.floor(player.ultCharge)}%`;
+      this.ultButton.style.opacity = ultimateActive ? '1' : canUltimate ? '1' : '0.55';
+      this.ultCharge.textContent = ultimateActive ? 'ОГИ' : `${Math.floor(player.ultCharge)}%`;
     }
 
     this.refreshSkills(state.skills);
@@ -147,16 +186,21 @@ export class HudOverlay {
       const def = getSkillDefinition(skill.id);
       const synergy = skill.synergyId ? getSynergyRecipe(skill.synergyId) : undefined;
       const name = synergy?.name ?? def?.name ?? skill.id;
-      const chip = el('div', 'flex items-center gap-1.5 rounded-lg border border-white/10 bg-black/45 px-2 py-1 backdrop-blur-sm');
-      const dot = el('span', 'h-1.5 w-1.5 rounded-full');
-      const color = synergy ? 0xffc94a : (def?.color ?? 0xffffff);
-      dot.style.background = `#${color.toString(16).padStart(6, '0')}`;
-      dot.style.boxShadow = `0 0 8px #${color.toString(16).padStart(6, '0')}`;
-      chip.append(
-        dot,
-        el('span', 'max-w-[110px] truncate text-[10px] text-[#c9d3e6]', name),
-        el('span', 'text-[10px] font-black text-[#35e6ff]', String(skill.level)),
+
+      const chip = el('div', 'flex items-center gap-1.5 border border-ash/20 bg-ink/60 px-1.5 py-1 backdrop-blur-sm');
+      chip.style.clipPath = 'var(--chamfer-sm)';
+
+      const icon = el('span', 'shrink-0 leading-none');
+      icon.innerHTML = skillIcon(skill.id, 20);
+
+      const label = el(
+        'span',
+        'max-w-[104px] truncate font-display text-[9px] leading-none text-bone',
+        name,
       );
+      const level = el('span', 'font-mono text-[9px] font-bold leading-none text-goldlight', String(skill.level));
+      chip.append(icon, label, level);
+      if (synergy) chip.style.borderColor = 'rgba(212,175,55,0.55)';
       this.skillList.appendChild(chip);
     }
   }

@@ -22,6 +22,8 @@ export class GameLoop {
   private running = false;
   private paused = false;
   private maxFrameDt = 0.25;
+  /** Simulation dilation for hit-stop effects. */
+  timeScale = 1;
   private readonly maxSteps = 5;
 
   constructor(callbacks: LoopCallbacks, fixedDt = FIXED_DT) {
@@ -73,7 +75,7 @@ export class GameLoop {
     if (frameDt > this.maxFrameDt) frameDt = this.maxFrameDt;
 
     if (!this.paused) {
-      this.accumulator += frameDt;
+      this.accumulator += frameDt * Math.max(0, this.timeScale);
       let steps = 0;
       while (this.accumulator >= this.fixedDt && steps < this.maxSteps) {
         this.update(this.fixedDt);

@@ -6,7 +6,7 @@
 import { Container, Sprite, type Texture } from 'pixi.js';
 import type { World } from '@/core/World';
 import type { VfxKind } from '@/types/game';
-import type { TextureFactory } from './TextureFactory';
+import type { ProceduralSprites } from '@/assets/ProceduralSprites';
 
 export class VfxRenderer {
   readonly container = new Container();
@@ -14,7 +14,7 @@ export class VfxRenderer {
 
   constructor(
     private readonly world: World,
-    private readonly textures: TextureFactory,
+    private readonly textures: ProceduralSprites,
   ) {
     this.container.blendMode = 'add';
     for (let i = 0; i < world.vfx.capacity; i += 1) {

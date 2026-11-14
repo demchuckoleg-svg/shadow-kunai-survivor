@@ -30,7 +30,13 @@ const BLEED_DPS = 2.5;
 const HIT_FLASH_TIME = 0.06;
 
 export type KillListener = (enemy: EnemyEntity) => void;
-export type HitListener = (crit: boolean) => void;
+export interface HitInfo {
+  crit: boolean;
+  heavy: boolean;
+  dirX: number;
+  dirY: number;
+}
+export type HitListener = (info: HitInfo) => void;
 
 export class CombatSystem {
   private readonly killListeners = new Set<KillListener>();
@@ -98,8 +104,12 @@ export class CombatSystem {
     if (opts.showText !== false) {
       this.world.spawnDamageText(enemy.x, enemy.y - enemy.radius, damage, crit, opts.color ?? 0xffffff);
     }
-    if (crit) this.camera.shake(2.5, 0.12);
-    for (const listener of this.hitListeners) listener(crit);
+    const dirX = enemy.x - this.state.player.x;
+    const dirY = enemy.y - this.state.player.y;
+    const length = Math.hypot(dirX, dirY) || 1;
+    const heavy = crit && (damage >= 30 || enemy.archetype === 'miniBoss');
+    const info: HitInfo = { crit, heavy, dirX: dirX / length, dirY: dirY / length };
+    for (const listener of this.hitListeners) listener(info);
 
     if (enemy.hp <= 0) {
       this.killEnemy(enemy, opts.sourceSkill ?? null);

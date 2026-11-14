@@ -145,3 +145,16 @@ shadow-kunai/
 - `README.md` — сборка, управление, статус.
 
 Типы разбиты на `types/core.ts`, `types/skills.ts`, `types/entities.ts`, `types/run.ts`; `types/game.ts` — публичный баррель.
+
+## 5. Neo-Edo Ink visual layer
+
+- `assets/palette.ts` — strict color tokens + Pixi numeric mirrors.
+- `assets/inkCanvas.ts` — offscreen-canvas pipeline (2x, shadow, outline, gradient, splatter).
+- `assets/enemySprites.ts`, `assets/projectileSprites.ts`, `assets/effectSprites.ts` — texture sets.
+- `assets/ProceduralSprites.ts` — facade with the same API the renderers consume.
+- `assets/SvgIcons.ts` — 20 bespoke skill SVGs + HUD glyphs (enso backdrop, silhouette, accent).
+- `render/ArenaRenderer.ts` — tiled ink floor, giant enso seal, drifting ash motes.
+- `render/TrailRenderer.ts` — pooled `PIXI.MeshRope` ribbons for fast player projectiles.
+- `render/JuiceController.ts` — 35–60 ms hit-stop (`timeScale = 0.05`) and directional camera punch.
+- Fonts are bundled via `@fontsource`: Cinzel, PT Serif (Cyrillic), Noto Serif JP accents, JetBrains Mono.
+- `style.css` — Tailwind theme tokens, chamfer clip-paths, double-line panels, paper grain, tactile flash.

@@ -106,6 +106,11 @@ export class SoundEngine {
     }
   }
 
+  playUiClick(): void {
+    this.tone({ freq: 560, endFreq: 320, duration: 0.045, type: 'square', volume: 0.035 });
+    this.noise(0.03, 0.02, 2600);
+  }
+
   playThrow(): void {
     this.tone({ freq: 980, endFreq: 380, duration: 0.07, type: 'triangle', volume: 0.04 });
   }

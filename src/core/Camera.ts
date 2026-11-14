@@ -29,6 +29,8 @@ export class Camera {
   private shakeMagnitude = 0;
   private shakeX = 0;
   private shakeY = 0;
+  private shakeDirX = 0;
+  private shakeDirY = 0;
 
   snapTo(target: CameraTarget): void {
     this.x = target.x;
@@ -41,14 +43,16 @@ export class Camera {
     this.y += (target.y - this.y) * t;
   }
 
-  /** Импульс тряски: magnitude — амплитуда в пикселях. */
-  shake(magnitude: number, duration = 0.25): void {
+  /** Directional impact shake. Direction is optional; magnitude is in pixels. */
+  shake(magnitude: number, duration = 0.25, dirX = 0, dirY = 0): void {
     if (magnitude <= 0 || duration <= 0) return;
-    // Не даём мелким ударам перебивать крупную тряску.
     if (magnitude >= this.shakeMagnitude || this.shakeTime <= 0) {
       this.shakeMagnitude = magnitude;
       this.shakeDuration = duration;
       this.shakeTime = duration;
+      const length = Math.hypot(dirX, dirY);
+      this.shakeDirX = length > 0.001 ? dirX / length : 0;
+      this.shakeDirY = length > 0.001 ? dirY / length : 0;
     }
   }
 
@@ -76,8 +80,12 @@ export class Camera {
       this.shakeTime = Math.max(0, this.shakeTime - dt);
       const falloff = this.shakeDuration > 0 ? this.shakeTime / this.shakeDuration : 0;
       const amplitude = this.shakeMagnitude * falloff * falloff;
-      this.shakeX = (Math.random() * 2 - 1) * amplitude;
-      this.shakeY = (Math.random() * 2 - 1) * amplitude;
+      const directional = Math.abs(this.shakeDirX) + Math.abs(this.shakeDirY) > 0.001;
+      const bias = directional ? 0.65 : 0;
+      this.shakeX =
+        (Math.random() * 2 - 1) * amplitude * (1 - bias) + this.shakeDirX * amplitude * bias;
+      this.shakeY =
+        (Math.random() * 2 - 1) * amplitude * (1 - bias) + this.shakeDirY * amplitude * bias;
     } else {
       this.shakeX = 0;
       this.shakeY = 0;

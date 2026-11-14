@@ -1,16 +1,19 @@
 /**
- * Модалка выбора 1 из 3 карточек при повышении уровня.
- * Зависимости: types, ui/dom.
+ * Level-up draft modal: stat / augmentation / golden synergy card.
+ * Neo-Edo ink styling with bespoke skill icons.
  */
 
-import type { Rarity, UpgradeCard } from '@/types/game';
+import type { Rarity, SkillId, UpgradeCard } from '@/types/game';
+import { getSynergyRecipe } from '@/data/synergies';
+import { PALETTE } from '@/assets/palette';
+import { skillIcon, uiIcon } from '@/assets/SvgIcons';
 import { SCREEN_CLASS, button, el } from './dom';
 
 const RARITY_COLOR: Record<Rarity, string> = {
-  common: '#8b93a7',
-  rare: '#35e6ff',
-  epic: '#c084fc',
-  legendary: '#ffc94a',
+  common: PALETTE.ash,
+  rare: PALETTE.jade,
+  epic: PALETTE.gold,
+  legendary: PALETTE.goldLight,
 };
 
 const KIND_LABEL: Record<UpgradeCard['kind'], string> = {
@@ -28,43 +31,59 @@ export class LevelUpModal {
 
     const header = el('div', 'flex flex-col items-center gap-1 text-center');
     header.append(
-      el('div', 'text-[11px] tracking-[0.35em] text-[#8b93a7] font-bold', 'НОВЫЙ УРОВЕНЬ'),
-      el('div', 'text-4xl font-black text-[#35e6ff] drop-shadow-[0_0_24px_rgba(53,230,255,0.5)]', String(level)),
-      el('div', 'text-xs text-[#9aa3b8]', 'Выбери одно усиление'),
+      el('div', 'font-mono text-[9px] tracking-[0.4em] text-ash', 'НОВЫЙ УРОВЕНЬ'),
+      el('div', 'font-display text-4xl font-bold text-gold', String(level)),
+      el('div', 'text-[11px] text-ash', 'Выбери одно усиление'),
     );
 
-    const list = el('div', 'flex w-full max-w-[420px] flex-col gap-2.5');
+    const list = el('div', 'neo-scroll flex w-full max-w-[430px] flex-col gap-2.5 overflow-y-auto');
 
     for (const card of cards) {
-      const color = RARITY_COLOR[card.rarity];
+      const accent = RARITY_COLOR[card.rarity];
       const node = button(
-        'relative flex flex-col gap-1 rounded-2xl border-2 p-3.5 text-left transition active:scale-[0.98]',
+        'neo-panel chamfer relative flex w-full items-stretch gap-3 p-3 text-left',
         '',
       );
-      node.style.borderColor = color;
+      if (card.kind === 'synergy') node.classList.add('neo-panel--gold');
       node.style.background =
-        card.kind === 'synergy'
-          ? 'linear-gradient(135deg, rgba(255,201,74,0.18), rgba(255,46,77,0.10))'
-          : 'rgba(255,255,255,0.045)';
-      node.style.boxShadow = `0 0 22px ${color}33`;
+        card.kind === 'synergy' ? 'rgba(212,175,55,0.10)' : PALETTE.slate;
+      node.style.borderColor = accent;
 
+      const rail = el('span', 'absolute left-0 top-0 h-full w-[3px]');
+      rail.style.background = accent;
+
+      const iconBox = el('span', 'relative grid h-12 w-12 shrink-0 place-items-center');
+      iconBox.innerHTML = card.skillId
+        ? skillIcon(card.skillId, 48)
+        : this.synergyIcon(card, 48);
+
+      const body = el('div', 'flex min-w-0 flex-1 flex-col gap-1');
       const top = el('div', 'flex items-center justify-between gap-2');
-      const kind = el('span', 'text-[9px] font-black tracking-[0.2em]', KIND_LABEL[card.kind]);
-      kind.style.color = color;
+      const kind = el('span', 'font-mono text-[8px] tracking-[0.24em]', KIND_LABEL[card.kind]);
+      kind.style.color = accent;
       top.append(kind);
       if (card.nextLevel !== null) {
-        top.append(el('span', 'text-[10px] font-bold text-[#9aa3b8]', `ур. ${card.nextLevel} / 10`));
+        top.append(el('span', 'font-mono text-[9px] text-ash', `УР. ${card.nextLevel}/10`));
       }
 
-      node.append(
+      body.append(
         top,
-        el('div', 'text-base font-black leading-tight', card.title),
-        el('div', 'text-xs leading-snug text-[#aeb7c9]', card.description),
+        el('div', 'font-display text-[15px] font-bold leading-tight text-bone', card.title),
+        el('div', 'text-[10px] leading-snug text-ash', card.description),
       );
+
+      node.append(rail, iconBox, body);
       node.addEventListener('click', () => onPick(card));
       list.appendChild(node);
     }
 
     this.root.append(header, list);
+  }
+
+  private synergyIcon(card: UpgradeCard, size: number): string {
+    const recipe = card.synergyId ? getSynergyRecipe(card.synergyId) : undefined;
+    const first: SkillId | undefined = recipe?.ingredients[0];
+    if (first) return skillIcon(first, size);
+    return uiIcon('ult', size);
   }
 }

@@ -1,19 +1,33 @@
 /**
- * Экран драфта: выбор 5 стартовых скиллов перед забегом.
- * Зависимости: data/skills, types, ui/dom.
+ * Pre-run draft: pick 5 of 20 skills. Neo-Edo ink styling.
+ * Dependencies: data/skills, assets/SvgIcons, ui/dom.
  */
 
 import type { SkillDefinition, SkillId } from '@/types/game';
 import { SKILL_DEFINITIONS } from '@/data/skills';
+import { skillIcon } from '@/assets/SvgIcons';
+import { PALETTE } from '@/assets/palette';
 import { SCREEN_CLASS, button, el } from './dom';
 
 const SLOTS = 5;
+const BEHAVIOR_LABEL: Record<string, string> = {
+  projectile: 'СНАРЯД',
+  orbit: 'ОРБИТА',
+  meleeArc: 'КЛИНОК',
+  zone: 'ЗОНА',
+  chain: 'ЦЕПЬ',
+  summon: 'ПРИЗЫВ',
+  aura: 'АУРА',
+  dash: 'РЫВОК',
+  portal: 'ПОРТАЛ',
+  mark: 'МЕТКА',
+};
 
 export class PreRunDraft {
   readonly root: HTMLDivElement;
   private readonly selected = new Set<SkillId>();
   private readonly cards = new Map<SkillId, HTMLButtonElement>();
-  private readonly counter = el('span', 'text-[#35e6ff] font-black', '0/5');
+  private readonly counter = el('span', 'font-mono text-goldlight font-bold', '0/5');
   private readonly startButton: HTMLButtonElement;
   private readonly available: SkillDefinition[];
   private readonly required: number;
@@ -28,18 +42,18 @@ export class PreRunDraft {
     this.root.style.paddingTop = 'max(calc(env(safe-area-inset-top,0px) + 14px), 30px)';
     this.root.style.paddingBottom = 'max(calc(env(safe-area-inset-bottom,0px) + 14px), 18px)';
 
-    const header = el('div', 'flex flex-col items-center gap-1 pb-3');
-    header.append(
-      el('div', 'text-[11px] tracking-[0.35em] text-[#8b93a7] font-bold', 'SHADOW KUNAI'),
-      el('h1', 'text-2xl font-black tracking-wide text-center', 'Выбери 5 скиллов'),
-      el(
-        'div',
-        'text-xs text-[#8b93a7] text-center',
-        'Все способности кастуются автоматически. Комбинируй ветки для слияний.',
-      ),
+    const header = el('div', 'flex flex-col items-center gap-1.5 pb-4');
+    const eyebrow = el('div', 'font-mono text-[10px] tracking-[0.45em] text-ash', 'SHADOW KUNAI');
+    const title = el('h1', 'font-display text-2xl font-bold tracking-wide text-bone text-center', 'Выбери пять клинков');
+    const subtitle = el(
+      'div',
+      'max-w-[340px] text-center text-[11px] leading-snug text-ash',
+      'Все способности кастуются автоматически. Собери пять школ и открой путь к слияниям.',
     );
+    const rule = el('div', 'ink-rule mt-2 w-40');
+    header.append(eyebrow, title, subtitle, rule);
 
-    const grid = el('div', 'grid grid-cols-2 gap-2 overflow-y-auto flex-1 pb-3');
+    const grid = el('div', 'neo-scroll grid grid-cols-2 gap-2.5 overflow-y-auto flex-1 pb-3');
     for (const def of this.available) {
       const card = this.buildCard(def);
       this.cards.set(def.id, card);
@@ -47,15 +61,14 @@ export class PreRunDraft {
     }
 
     const footer = el('div', 'flex flex-col gap-2');
-    const status = el('div', 'flex items-center justify-between text-xs text-[#8b93a7] px-1');
-    status.append(el('span', '', 'Выбрано'), this.counter);
+    const status = el('div', 'flex items-center justify-between px-1 font-mono text-[10px] tracking-widest text-ash');
+    status.append(el('span', '', 'ВЫБРАНО'), this.counter);
 
-    this.startButton = button(
-      'w-full rounded-2xl py-4 font-black tracking-wider text-[#04141a] transition disabled:opacity-40',
-      'В БОЙ',
-    );
-    this.startButton.style.background = 'linear-gradient(90deg,#35e6ff,#9be15d)';
-    this.startButton.style.boxShadow = '0 0 28px rgba(53,230,255,0.35)';
+    this.startButton = button('neo-btn chamfer py-4 text-center font-display text-lg font-bold', 'В БОЙ');
+    this.startButton.style.background = PALETTE.crimson;
+    this.startButton.style.borderColor = PALETTE.gold;
+    this.startButton.style.color = PALETTE.bone;
+    this.startButton.style.boxShadow = 'inset 0 0 0 3px rgba(11,12,16,0.55)';
     this.startButton.addEventListener('click', () => {
       if (this.selected.size !== this.required) return;
       onStart([...this.selected]);
@@ -73,22 +86,27 @@ export class PreRunDraft {
   }
 
   private buildCard(def: SkillDefinition): HTMLButtonElement {
-    const card = button('relative flex flex-col gap-1 rounded-2xl border p-3 text-left transition active:scale-[0.98]', '');
-    card.style.background = 'rgba(255,255,255,0.035)';
-    card.style.borderColor = 'rgba(255,255,255,0.08)';
+    const card = button('neo-panel chamfer relative flex flex-col gap-1.5 p-2.5 text-left transition', '');
+    card.style.background = PALETTE.slate;
+    card.style.borderColor = 'rgba(141,153,174,0.35)';
 
-    const dot = el('span', 'inline-block h-2 w-2 rounded-full');
-    dot.style.background = `#${def.color.toString(16).padStart(6, '0')}`;
-    dot.style.boxShadow = `0 0 10px #${def.color.toString(16).padStart(6, '0')}`;
+    const top = el('div', 'flex items-start gap-2');
+    const icon = el('span', 'shrink-0 leading-none');
+    icon.innerHTML = skillIcon(def.id, 38);
+    const name = el('span', 'font-display text-[13px] font-bold leading-tight text-bone', def.name);
+    top.append(icon, name);
 
-    const titleRow = el('div', 'flex items-center gap-2');
-    titleRow.append(dot, el('span', 'text-sm font-bold leading-tight', def.name));
-
-    card.append(
-      titleRow,
-      el('span', 'text-[11px] leading-snug text-[#9aa3b8]', def.description),
-      el('span', 'text-[10px] font-bold tracking-wider text-[#6f7890] uppercase', def.behavior),
+    const description = el('span', 'text-[10px] leading-snug text-ash', def.description);
+    const meta = el(
+      'span',
+      'font-mono text-[8px] tracking-[0.2em] text-gold/80',
+      BEHAVIOR_LABEL[def.behavior] ?? def.behavior.toUpperCase(),
     );
+    const mark = el('span', 'absolute right-2 top-2 h-1.5 w-1.5 rotate-45 bg-gold');
+    mark.style.display = 'none';
+
+    card.append(top, description, meta, mark);
+    card.dataset.mark = '0';
 
     card.addEventListener('click', () => {
       if (this.selected.has(def.id)) {
@@ -107,10 +125,13 @@ export class PreRunDraft {
     this.startButton.disabled = this.selected.size !== this.required;
     for (const [id, card] of this.cards) {
       const on = this.selected.has(id);
-      card.style.borderColor = on ? 'rgba(53,230,255,0.85)' : 'rgba(255,255,255,0.08)';
-      card.style.background = on ? 'rgba(53,230,255,0.12)' : 'rgba(255,255,255,0.035)';
-      card.style.boxShadow = on ? '0 0 20px rgba(53,230,255,0.22)' : 'none';
-      card.style.opacity = on ? '1' : '0.72';
+      card.style.borderColor = on ? PALETTE.gold : 'rgba(141,153,174,0.35)';
+      card.style.background = on ? 'rgba(212,175,55,0.08)' : PALETTE.slate;
+      card.style.boxShadow = on ? 'inset 0 0 0 1px rgba(243,229,171,0.35)' : 'none';
+      card.style.opacity = on ? '1' : '0.62';
+      card.dataset.mark = on ? '1' : '0';
+      const mark = card.querySelector('span.absolute');
+      if (mark instanceof HTMLElement) mark.style.display = on ? 'block' : 'none';
     }
   }
 }
