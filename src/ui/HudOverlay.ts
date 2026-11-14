@@ -25,8 +25,9 @@ export class HudOverlay {
 
   constructor(onUltimate: () => void, onToggleAuto: (enabled: boolean) => void) {
     this.root = el('div', 'fixed inset-0 z-20 pointer-events-none hidden');
+    this.root.style.pointerEvents = 'none';
     this.root.style.padding =
-      'calc(env(safe-area-inset-top,0px) + 10px) calc(env(safe-area-inset-right,0px) + 12px) calc(env(safe-area-inset-bottom,0px) + 16px) calc(env(safe-area-inset-left,0px) + 12px)';
+      'max(calc(env(safe-area-inset-top,0px) + 10px), 28px) max(calc(env(safe-area-inset-right,0px) + 12px), 12px) max(calc(env(safe-area-inset-bottom,0px) + 16px), 18px) max(calc(env(safe-area-inset-left,0px) + 12px), 12px)';
 
     const top = el('div', 'flex items-start justify-between gap-3');
 
@@ -76,7 +77,7 @@ export class HudOverlay {
     this.ultButton.style.border = '2px solid rgba(255,120,140,0.85)';
     this.ultButton.style.boxShadow = '0 0 30px rgba(255,46,77,0.55)';
     this.ultButton.style.right = 'calc(18px + env(safe-area-inset-right,0px))';
-    this.ultButton.style.bottom = 'calc(22px + env(safe-area-inset-bottom,0px))';
+    this.ultButton.style.bottom = 'max(calc(22px + env(safe-area-inset-bottom,0px)), 28px)';
     this.ultButton.addEventListener('click', onUltimate);
 
     this.autoButton = button(
@@ -84,7 +85,7 @@ export class HudOverlay {
       'АВТО',
     );
     this.autoButton.style.right = 'calc(112px + env(safe-area-inset-right,0px))';
-    this.autoButton.style.bottom = 'calc(28px + env(safe-area-inset-bottom,0px))';
+    this.autoButton.style.bottom = 'max(calc(28px + env(safe-area-inset-bottom,0px)), 34px)';
     this.autoButton.addEventListener('click', () => {
       const next = !this.autoButton.classList.contains('auto-on');
       this.setAuto(next);

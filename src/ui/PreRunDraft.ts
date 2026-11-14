@@ -24,7 +24,9 @@ export class PreRunDraft {
     );
     this.required = Math.min(SLOTS, this.available.length);
 
-    this.root = el('div', `${SCREEN_CLASS} px-4 pt-[calc(env(safe-area-inset-top,0px)+14px)] pb-[calc(env(safe-area-inset-bottom,0px)+14px)]`);
+    this.root = el('div', `${SCREEN_CLASS} px-4`);
+    this.root.style.paddingTop = 'max(calc(env(safe-area-inset-top,0px) + 14px), 30px)';
+    this.root.style.paddingBottom = 'max(calc(env(safe-area-inset-bottom,0px) + 14px), 18px)';
 
     const header = el('div', 'flex flex-col items-center gap-1 pb-3');
     header.append(

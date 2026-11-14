@@ -51,7 +51,7 @@ export function createPlayerState(): PlayerState {
     level: 1,
     xp: 0,
     nextLevelXp: 5,
-    pickupRadius: 70,
+    pickupRadius: 105,
     critChance: 0.05,
     critMult: 1.6,
     armor: 0,

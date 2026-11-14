@@ -234,6 +234,20 @@ async function boot(): Promise<void> {
     },
   });
 
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      if (state.phase === 'playing') {
+        state.phase = 'paused';
+        joystick.setEnabled(false);
+        loop.pause();
+      }
+    } else if (state.phase === 'paused') {
+      state.phase = 'playing';
+      joystick.setEnabled(true);
+      loop.resume();
+    }
+  });
+
   window.addEventListener('keydown', (event) => {
     if (event.repeat) return;
     const target = event.target;
@@ -253,6 +267,18 @@ async function boot(): Promise<void> {
       if (skill) skillSystem.levelUpSkill(skill.id);
     }
   });
+
+  if (import.meta.env.DEV) {
+    (window as unknown as { __shadow?: unknown }).__shadow = {
+      state,
+      world,
+      playerSystem,
+      skillSystem,
+      progression,
+      ultimateSystem,
+      camera,
+    };
+  }
 
   ui.showDraft();
   loop.start();

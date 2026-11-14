@@ -70,7 +70,7 @@ export class PlayerSystem {
         return;
       }
 
-      const speed = Math.min(PICKUP_MAX_SPEED, PICKUP_ACCEL * dt + 220);
+      const speed = Math.min(PICKUP_MAX_SPEED, PICKUP_ACCEL * dt + 480);
       const inv = dist > 0.001 ? 1 / dist : 0;
       pickup.x += dx * inv * speed * dt;
       pickup.y += dy * inv * speed * dt;
