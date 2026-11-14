@@ -27,6 +27,7 @@ export class ProjectileSystem {
   ) {}
 
   update(dt: number): void {
+    if (!this.state.isRunning) return;
     this.updateProjectiles(dt);
     this.updateZones(dt);
     this.updateOrbitals(dt);

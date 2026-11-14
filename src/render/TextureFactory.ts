@@ -129,6 +129,7 @@ function waterDragon(renderer: Renderer, color: number): Texture {
 
 export class TextureFactory {
   readonly enemy: Record<EnemyArchetypeId, Texture>;
+  readonly enemyFlash: Record<EnemyArchetypeId, Texture>;
   readonly projectile: Record<ProjectileKind, Texture>;
   readonly player: Texture;
   readonly playerShadow: Texture;
@@ -147,6 +148,14 @@ export class TextureFactory {
       samurai: ngon(renderer, 6, 18, 0x3d2c10, 0xffc94a),
       archer: circle(renderer, 13, 0x0f3038, 0x35e6ff, 2),
       miniBoss: star(renderer, 8, 34, 22, 0x4d1f08, 0xff7a1a),
+    };
+
+    this.enemyFlash = {
+      genin: ngon(renderer, 4, 15, 0xffffff, 0xffffff),
+      assassin: ngon(renderer, 3, 14, 0xffffff, 0xffffff),
+      samurai: ngon(renderer, 6, 18, 0xffffff, 0xffffff),
+      archer: circle(renderer, 13, 0xffffff, 0xffffff, 2),
+      miniBoss: star(renderer, 8, 34, 22, 0xffffff, 0xffffff),
     };
 
     this.projectile = {

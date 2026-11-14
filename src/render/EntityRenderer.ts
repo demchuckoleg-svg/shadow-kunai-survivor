@@ -25,6 +25,7 @@ export class EntityRenderer {
 
   private readonly enemySprites: Sprite[] = [];
   private readonly enemyTextures: (EnemyArchetypeId | null)[] = [];
+  private readonly enemyFlashing: boolean[] = [];
   private readonly projectileSprites: Sprite[] = [];
   private readonly projectileTextures: (ProjectileKind | null)[] = [];
   private readonly pickupSprites: Sprite[] = [];
@@ -65,6 +66,7 @@ export class EntityRenderer {
       sprite.visible = false;
       this.enemySprites.push(sprite);
       this.enemyTextures.push(null);
+      this.enemyFlashing.push(false);
       this.entityLayer.addChild(sprite);
     }
   }
@@ -128,16 +130,20 @@ export class EntityRenderer {
       sprite.visible = enemy.active;
       if (!enemy.active) continue;
 
-      if (this.enemyTextures[i] !== enemy.archetype) {
+      const flashing = enemy.hitFlashTimer > 0;
+      if (this.enemyTextures[i] !== enemy.archetype || this.enemyFlashing[i] !== flashing) {
         this.enemyTextures[i] = enemy.archetype;
-        sprite.texture = this.textures.enemy[enemy.archetype];
+        this.enemyFlashing[i] = flashing;
+        sprite.texture = flashing
+          ? this.textures.enemyFlash[enemy.archetype]
+          : this.textures.enemy[enemy.archetype];
       }
       sprite.position.set(enemy.x, enemy.y);
       sprite.zIndex = enemy.y;
       const eliteScale = enemy.isElite ? 1.18 : 1;
       sprite.scale.set((enemy.radius / ENEMY_TEXTURE_RADIUS) * eliteScale);
       sprite.rotation = 0;
-      sprite.tint = enemy.hitFlashTimer > 0 ? 0xffffff : enemy.isElite ? 0xffe0a8 : 0xffffff;
+      sprite.tint = !flashing && enemy.isElite ? 0xffe0a8 : 0xffffff;
       sprite.alpha = enemy.freezeTimer > 0 ? 0.75 : 1;
     }
   }
