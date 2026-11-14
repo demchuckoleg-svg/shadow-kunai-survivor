@@ -84,7 +84,7 @@ export class ArenaRenderer {
     this.floor = new TilingSprite({ texture: tile, width: ARENA_HALF * 2, height: ARENA_HALF * 2 });
     this.floor.position.set(-ARENA_HALF, -ARENA_HALF);
 
-    const enso = texture(1024, drawEnso);
+    const enso = texture(512, drawEnso);
     const seal = new Sprite(enso);
     seal.anchor.set(0.5);
     seal.position.set(0, 0);
