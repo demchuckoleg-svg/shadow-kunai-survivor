@@ -81,6 +81,7 @@ export interface ProjectileEntity extends Entity {
   ricochetLeft: number;
   homing: boolean;
   targetId: number;
+  lastHitId: number;
   lifetime: number;
   maxLifetime: number;
   critChance: number;

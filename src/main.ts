@@ -4,60 +4,58 @@ import { GameState } from '@/core/GameState';
 import { Camera } from '@/core/Camera';
 import { GameLoop } from '@/core/GameLoop';
 import { TouchJoystick } from '@/core/TouchJoystick';
+import { World } from '@/core/World';
+import { PlayerSystem } from '@/systems/PlayerSystem';
+import { EnemySystem } from '@/systems/EnemySystem';
+import { CombatSystem } from '@/systems/CombatSystem';
+import { ProjectileSystem } from '@/systems/ProjectileSystem';
+import { TextureFactory } from '@/render/TextureFactory';
+import { EntityRenderer } from '@/render/EntityRenderer';
+import { VfxRenderer } from '@/render/VfxRenderer';
+import { FloatingTextRenderer } from '@/render/FloatingText';
 import type { SkillId } from '@/types/game';
-
-/**
- * Точка входа.
- * Шаг 2: ядро (пулы/сетка/состояние/цикл/камера/джойстик) + отладочная сцена.
- */
 
 const GAME_ROOT_ID = 'game-root';
 const DEMO_LOADOUT: readonly SkillId[] = ['kunai', 'shuriken', 'katana', 'smoke', 'seals'];
-const ARENA_HALF = 2400;
+const ARENA_HALF = 3400;
 
 function createArena(): Container {
   const arena = new Container();
-
   const floor = new Graphics();
-  floor.rect(-ARENA_HALF, -ARENA_HALF, ARENA_HALF * 2, ARENA_HALF * 2).fill({ color: 0x0b0b16 });
+  floor.rect(-ARENA_HALF, -ARENA_HALF, ARENA_HALF * 2, ARENA_HALF * 2).fill({ color: 0x080811 });
 
   const grid = new Graphics();
-  const step = 128;
-  for (let x = -ARENA_HALF; x <= ARENA_HALF; x += step) {
+  for (let x = -ARENA_HALF; x <= ARENA_HALF; x += 128) {
     grid.moveTo(x, -ARENA_HALF).lineTo(x, ARENA_HALF);
   }
-  for (let y = -ARENA_HALF; y <= ARENA_HALF; y += step) {
+  for (let y = -ARENA_HALF; y <= ARENA_HALF; y += 128) {
     grid.moveTo(-ARENA_HALF, y).lineTo(ARENA_HALF, y);
   }
-  grid.stroke({ width: 1, color: 0x1d2336, alpha: 0.55 });
+  grid.stroke({ width: 1, color: 0x161d2e, alpha: 0.7 });
 
-  const border = new Graphics();
-  border.rect(-ARENA_HALF, -ARENA_HALF, ARENA_HALF * 2, ARENA_HALF * 2).stroke({
-    width: 4,
-    color: 0x35e6ff,
-    alpha: 0.35,
-  });
-
-  arena.addChild(floor, grid, border);
+  arena.addChild(floor, grid);
   return arena;
 }
 
-function createNinja(): Container {
-  const ninja = new Container();
-
-  const shadow = new Graphics();
-  shadow.ellipse(0, 10, 16, 7).fill({ color: 0x000000, alpha: 0.55 });
-
-  const body = new Graphics();
-  body.circle(0, 0, 14).fill({ color: 0x151527 });
-  body.circle(0, 0, 14).stroke({ width: 2, color: 0x35e6ff, alpha: 0.9 });
-  body.circle(0, -3, 4).fill({ color: 0xff2e4d });
-
-  const blade = new Graphics();
-  blade.moveTo(10, -2).lineTo(30, 0).lineTo(10, 3).closePath().fill({ color: 0xbfefff, alpha: 0.85 });
-
-  ninja.addChild(shadow, body, blade);
-  return ninja;
+function createDebugHud(): HTMLDivElement {
+  const hud = document.createElement('div');
+  hud.dataset.ui = 'hud';
+  hud.style.cssText = [
+    'position:fixed',
+    'left:12px',
+    'top:calc(12px + env(safe-area-inset-top, 0px))',
+    'font:600 12px/1.5 ui-monospace, SFMono-Regular, monospace',
+    'color:#cfe9ff',
+    'background:rgba(7,7,13,0.55)',
+    'border:1px solid rgba(53,230,255,0.25)',
+    'border-radius:8px',
+    'padding:6px 9px',
+    'pointer-events:none',
+    'white-space:pre',
+    'z-index:30',
+  ].join(';');
+  document.body.appendChild(hud);
+  return hud;
 }
 
 async function boot(): Promise<void> {
@@ -80,59 +78,103 @@ async function boot(): Promise<void> {
   const state = new GameState();
   state.startRun(DEMO_LOADOUT);
 
+  const world = new World();
   const camera = new Camera();
   camera.snapTo(state.player);
 
-  const world = new Container();
-  world.sortableChildren = true;
-  app.stage.addChild(world);
+  const playerSystem = new PlayerSystem(state, world);
+  const combat = new CombatSystem(state, world, camera);
+  const enemySystem = new EnemySystem(state, world, playerSystem, camera, () => ({
+    width: app.screen.width,
+    height: app.screen.height,
+  }));
+  const projectileSystem = new ProjectileSystem(state, world, combat, playerSystem);
 
-  const arena = createArena();
-  const ninja = createNinja();
-  world.addChild(arena, ninja);
+  const textures = new TextureFactory(app.renderer);
+  const entityRenderer = new EntityRenderer(world, textures);
+  const vfxRenderer = new VfxRenderer(world, textures);
+  const floatingText = new FloatingTextRenderer(world);
+
+  const worldContainer = new Container();
+  worldContainer.sortableChildren = true;
+  worldContainer.addChild(
+    createArena(),
+    entityRenderer.container,
+    vfxRenderer.container,
+    floatingText.container,
+  );
+  app.stage.addChild(worldContainer);
 
   const joystick = new TouchJoystick(state.input);
+  const hud = createDebugHud();
+
+  state.on((event) => {
+    if (event.type === 'playerDamaged') {
+      camera.shake(7, 0.28);
+    } else if (event.type === 'levelUp') {
+      camera.shake(2, 0.15);
+      world.spawnVfx({
+        kind: 'ring',
+        x: state.player.x,
+        y: state.player.y,
+        color: 0x35e6ff,
+        life: 0.5,
+        radius: 60,
+        width: 3,
+      });
+    } else if (event.type === 'xpGained') {
+    } else if (event.type === 'bossSpawned') {
+      camera.shake(12, 0.6);
+    } else if (event.type === 'runEnded') {
+      joystick.setEnabled(false);
+    }
+  });
+
+  let hudTimer = 0;
+  const refreshHud = (): void => {
+    const player = state.player;
+    const minutes = Math.floor(state.timer.elapsed / 60);
+    const seconds = Math.floor(state.timer.elapsed % 60);
+    hud.textContent =
+      `HP ${Math.ceil(player.hp)}/${player.maxHp}   LV ${player.level}\n` +
+      `XP ${player.xp}/${player.nextLevelXp}   KILLS ${state.kills}\n` +
+      `TIME ${minutes}:${String(seconds).padStart(2, '0')}   ULT ${Math.floor(player.ultCharge)}%`;
+  };
+  refreshHud();
 
   const loop = new GameLoop({
     update: (dt) => {
       state.update(dt);
-
-      const player = state.player;
-      if (state.isRunning && state.input.active) {
-        player.vx = state.input.moveX * player.speed;
-        player.vy = state.input.moveY * player.speed;
-        player.x = Math.max(-ARENA_HALF, Math.min(ARENA_HALF, player.x + player.vx * dt));
-        player.y = Math.max(-ARENA_HALF, Math.min(ARENA_HALF, player.y + player.vy * dt));
-        const len = Math.hypot(player.vx, player.vy);
-        if (len > 0.01) {
-          player.facingX = player.vx / len;
-          player.facingY = player.vy / len;
-          ninja.rotation = Math.atan2(player.facingY, player.facingX);
-        }
-      }
-
-      camera.follow(player, dt);
+      combat.updateStatuses(dt);
+      playerSystem.update(dt);
+      enemySystem.update(dt);
+      projectileSystem.update(dt);
+      camera.follow(state.player, dt);
       camera.update(dt);
+
+      hudTimer += dt;
+      if (hudTimer >= 0.2) {
+        hudTimer = 0;
+        refreshHud();
+      }
     },
-    render: () => {
+    render: (_alpha, frameDt) => {
       const width = app.screen.width;
       const height = app.screen.height;
       const cam = camera.state;
-      world.scale.set(cam.zoom);
-      world.position.set(
+      worldContainer.scale.set(cam.zoom);
+      worldContainer.position.set(
         width / 2 - cam.x * cam.zoom + cam.shakeX,
         height / 2 - cam.y * cam.zoom + cam.shakeY,
       );
-      ninja.position.set(state.player.x, state.player.y);
-      ninja.alpha = state.player.invulnTimer > 0 ? 0.55 : 1;
+      entityRenderer.update(state, state.timer.elapsed);
+      vfxRenderer.update(frameDt);
+      floatingText.update(frameDt);
     },
   });
 
   joystick.setEnabled(true);
   loop.start();
-
-  // Отладка: тап по свободному месту не должен ломать джойстик на тач-устройствах.
-  window.addEventListener('resize', () => camera.setZoom(1), { passive: true });
 }
 
 void boot().catch((error: unknown) => {
