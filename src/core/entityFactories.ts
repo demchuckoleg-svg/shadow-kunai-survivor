@@ -89,6 +89,10 @@ export const createProjectileEntity = (id: number): ProjectileEntity => ({
   trailTimer: 0,
   color: 0xffffff,
   scale: 1,
+  explodeRadius: 0,
+  explodeZone: null,
+  explodeChildren: 0,
+  freezeDuration: 0,
 });
 
 export const resetProjectileEntity = (projectile: ProjectileEntity): void => {
@@ -100,6 +104,10 @@ export const resetProjectileEntity = (projectile: ProjectileEntity): void => {
   projectile.pierceLeft = 0;
   projectile.ricochetLeft = 0;
   projectile.trailTimer = 0;
+  projectile.explodeRadius = 0;
+  projectile.explodeZone = null;
+  projectile.explodeChildren = 0;
+  projectile.freezeDuration = 0;
 };
 
 export const createPickupEntity = (id: number): PickupEntity => ({

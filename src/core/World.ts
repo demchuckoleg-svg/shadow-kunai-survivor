@@ -59,6 +59,10 @@ export interface ProjectileSpawn {
   critMult?: number;
   knockback?: number;
   scale?: number;
+  explodeRadius?: number;
+  explodeZone?: ZoneKind | null;
+  explodeChildren?: number;
+  freezeDuration?: number;
 }
 
 export interface VfxSpawn {
@@ -230,6 +234,10 @@ export class World {
     projectile.knockback = opts.knockback ?? 0;
     projectile.trailTimer = 0;
     projectile.scale = opts.scale ?? 1;
+    projectile.explodeRadius = opts.explodeRadius ?? 0;
+    projectile.explodeZone = opts.explodeZone ?? null;
+    projectile.explodeChildren = opts.explodeChildren ?? 0;
+    projectile.freezeDuration = opts.freezeDuration ?? 0;
     return projectile;
   }
 

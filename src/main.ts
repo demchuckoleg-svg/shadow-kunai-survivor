@@ -103,6 +103,7 @@ async function boot(): Promise<void> {
     world.reset();
     camera.reset();
     enemySystem.reset();
+    skillSystem.reset();
     state.startRun(loadout);
     camera.snapTo(state.player);
     pendingLevels = 0;

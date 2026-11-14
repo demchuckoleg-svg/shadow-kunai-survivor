@@ -36,6 +36,7 @@ export class ProjectileSystem {
     this.world.projectiles.forEachActive((projectile) => {
       projectile.lifetime -= dt;
       if (projectile.lifetime <= 0) {
+        if (projectile.explodeRadius > 0) this.explode(projectile, projectile.x, projectile.y);
         this.world.projectiles.release(projectile);
         return;
       }
@@ -132,6 +133,9 @@ export class ProjectileSystem {
   }
 
   private onProjectileHit(projectile: ProjectileEntity, enemy: EnemyEntity): void {
+    if (projectile.freezeDuration > 0) {
+      enemy.freezeTimer = Math.max(enemy.freezeTimer, projectile.freezeDuration);
+    }
     const result = this.combat.damageEnemy(enemy, projectile.damage, {
       critChance: projectile.critChance,
       critMult: projectile.critMult,
@@ -149,6 +153,8 @@ export class ProjectileSystem {
       radius: projectile.radius * 2.2,
       width: 2,
     });
+
+    if (projectile.explodeRadius > 0) this.explode(projectile, enemy.x, enemy.y);
 
     projectile.lastHitId = enemy.id;
 
@@ -176,6 +182,80 @@ export class ProjectileSystem {
       return;
     }
     this.world.projectiles.release(projectile);
+  }
+
+  private explode(projectile: ProjectileEntity, x: number, y: number): void {
+    const radius = projectile.explodeRadius;
+    if (radius <= 0) return;
+
+    this.world.spawnVfx({
+      kind: 'explosion',
+      x,
+      y,
+      color: projectile.color,
+      life: 0.4,
+      radius,
+      width: 6,
+    });
+    this.world.spawnVfx({
+      kind: 'ring',
+      x,
+      y,
+      color: projectile.color,
+      life: 0.32,
+      radius: radius * 0.8,
+      width: 4,
+    });
+
+    const enemies = this.world.enemyGrid.queryCircle(x, y, radius, this.world.enemyQuery);
+    for (let i = 0; i < enemies.length; i += 1) {
+      const enemy = enemies[i];
+      if (!enemy || !enemy.active || enemy.hp <= 0) continue;
+      this.combat.damageEnemy(enemy, projectile.damage, {
+        critChance: projectile.critChance,
+        critMult: projectile.critMult,
+        sourceSkill: projectile.sourceSkill,
+        color: projectile.color,
+        knockback: projectile.knockback,
+      });
+      if (enemy.active && projectile.freezeDuration > 0) {
+        enemy.freezeTimer = Math.max(enemy.freezeTimer, projectile.freezeDuration);
+      }
+    }
+
+    if (projectile.explodeZone) {
+      this.world.spawnZone({
+        kind: projectile.explodeZone,
+        skillId: projectile.sourceSkill ?? 'fireball',
+        x,
+        y,
+        radius: radius * 0.8,
+        duration: 3,
+        damage: projectile.damage * 0.18,
+        color: 0xff7a1a,
+        tickInterval: 0.4,
+      });
+    }
+
+    for (let i = 0; i < projectile.explodeChildren; i += 1) {
+      const angle = (i / Math.max(1, projectile.explodeChildren)) * Math.PI * 2;
+      this.world.spawnProjectile({
+        kind: 'fireball',
+        x,
+        y,
+        vx: Math.cos(angle) * 220,
+        vy: Math.sin(angle) * 220,
+        damage: projectile.damage * 0.35,
+        sourceSkill: projectile.sourceSkill,
+        faction: 'player',
+        lifetime: 0.7,
+        color: projectile.color,
+        radius: projectile.radius * 0.7,
+        explodeRadius: radius * 0.45,
+        critChance: projectile.critChance,
+        critMult: projectile.critMult,
+      });
+    }
   }
 
   private updateZones(dt: number): void {

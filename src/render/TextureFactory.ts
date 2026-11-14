@@ -102,6 +102,31 @@ function fireball(renderer: Renderer, color: number): Texture {
   return makeTexture(renderer, g);
 }
 
+function crow(renderer: Renderer, color: number): Texture {
+  const g = new Graphics();
+  g.moveTo(12, 0).lineTo(-4, -9).lineTo(-1, 0).lineTo(-4, 9).closePath().fill({ color, alpha: 0.95 });
+  g.moveTo(-6, 0).lineTo(-14, -4).lineTo(-10, 0).lineTo(-14, 4).closePath().fill({ color, alpha: 0.75 });
+  g.circle(6, -2, 1.6).fill({ color: 0xff2e4d, alpha: 1 });
+  return makeTexture(renderer, g);
+}
+
+function waterDragon(renderer: Renderer, color: number): Texture {
+  const g = new Graphics();
+  for (let i = 0; i < 5; i += 1) {
+    const x = -16 + i * 8;
+    const y = Math.sin(i * 1.35) * 7;
+    const radius = 8 - i * 0.9;
+    g.circle(x, y, radius).fill({ color, alpha: 0.28 });
+  }
+  for (let i = 0; i < 5; i += 1) {
+    const x = -16 + i * 8;
+    const y = Math.sin(i * 1.35) * 7;
+    const radius = 4.5 - i * 0.5;
+    g.circle(x, y, radius).fill({ color: 0xd9fbff, alpha: 0.8 });
+  }
+  return makeTexture(renderer, g);
+}
+
 export class TextureFactory {
   readonly enemy: Record<EnemyArchetypeId, Texture>;
   readonly projectile: Record<ProjectileKind, Texture>;
@@ -135,6 +160,8 @@ export class TextureFactory {
       soulFire: glow(renderer, 10, 0x9be15d),
       phantomKunai: kunai(renderer, 0xff4d6d),
       cloneShot: kunai(renderer, 0x9b8cff),
+      crow: crow(renderer, 0x1b1b2e),
+      waterDragon: waterDragon(renderer, 0x35b8ff),
       enemyArrow: needle(renderer, 0x35e6ff),
     };
 

@@ -14,6 +14,26 @@ import {
   hasAugment,
   unlockAugment,
 } from '@/data/skills';
+import {
+  castCrows,
+  castFireball,
+  castIceFan,
+  castKusarigama,
+  castLightning,
+  castMakibishi,
+  castSenbon,
+  castShadowClone,
+} from './AdvancedCastsA';
+import {
+  castBamboo,
+  castGhostDash,
+  castLantern,
+  castMirror,
+  castOniMask,
+  castReaper,
+  castWaterDragon,
+} from './AdvancedCastsB';
+import type { CastContext } from './castContext';
 
 const RETRY_COOLDOWN = 0.12;
 const SMOKE_DURATION = 4;
@@ -26,19 +46,43 @@ export class SkillSystem {
   private readonly chainIds: number[] = [];
   private readonly katanaTargets: EnemyEntity[] = [];
   private readonly smokeTargets: EnemyEntity[] = [];
+  private readonly ctx: CastContext;
+  private nextLifestealAt = 40;
   private unsubscribe: (() => void) | null = null;
+  private unlistenState: (() => void) | null = null;
 
   constructor(
     private readonly state: GameState,
     private readonly world: World,
     private readonly combat: CombatSystem,
   ) {
+    this.ctx = { state, world, combat };
     this.unsubscribe = combat.onKill((enemy) => this.onEnemyKilled(enemy));
+    this.unlistenState = state.on((event) => {
+      if (event.type !== 'playerDamaged') return;
+      const payload = event.payload;
+      const tookDamage =
+        typeof payload === 'object' && payload !== null && 'amount' in payload;
+      if (!tookDamage) return;
+      const oni = this.state.getSkill('oniMask');
+      if (oni && hasAugment(oni, 10)) {
+        this.state.player.attackSpeedBuffTimer = Math.max(
+          this.state.player.attackSpeedBuffTimer,
+          4,
+        );
+      }
+    });
+  }
+
+  reset(): void {
+    this.castCounts.clear();
+    this.nextLifestealAt = 40;
   }
 
   update(dt: number): void {
     if (!this.state.isRunning) return;
     this.updateSeals(dt);
+    this.updatePassive();
     for (const skill of this.state.skills) {
       const def = getSkillDefinition(skill.id);
       if (!def) continue;
@@ -47,8 +91,48 @@ export class SkillSystem {
       const cast = this.cast(skill, def);
       const stats = computeSkillStats(skill);
       const speedBuff = this.state.player.attackSpeedBuffTimer > 0 ? 0.5 : 1;
-      skill.cooldownTimer = cast ? stats.cooldown * speedBuff : RETRY_COOLDOWN;
+      let cooldown = cast ? stats.cooldown * speedBuff : RETRY_COOLDOWN;
+      if (cast && skill.id === 'oniMask' && hasAugment(skill, 3)) {
+        const hpFraction = this.state.player.hp / Math.max(1, this.state.player.maxHp);
+        cooldown *= 0.55 + 0.45 * hpFraction;
+      }
+      skill.cooldownTimer = cooldown;
     }
+  }
+
+  /** Пассивки: вампиризм Сенбона и казни Жнеца. */
+  private updatePassive(): void {
+    const senbon = this.state.getSkill('senbon');
+    if (senbon && hasAugment(senbon, 10)) {
+      while (senbon.critCount >= this.nextLifestealAt) {
+        this.nextLifestealAt += 40;
+        this.state.player.hp = Math.min(this.state.player.maxHp, this.state.player.hp + 1);
+      }
+    }
+
+    const reaper = this.state.getSkill('reaper');
+    if (!reaper || !hasAugment(reaper, 10)) return;
+    this.world.enemies.forEachActive((enemy) => {
+      if (!enemy.marked || enemy.hp <= 0) return;
+      if (enemy.hp / Math.max(1, enemy.maxHp) > 0.2) return;
+      this.combat.damageEnemy(enemy, enemy.hp + 50, {
+        sourceSkill: 'reaper',
+        color: 0xffffff,
+        critChance: 1,
+      });
+      this.world.spawnVfx({
+        kind: 'slash',
+        x: enemy.x,
+        y: enemy.y,
+        fromX: enemy.x - 20,
+        fromY: enemy.y - 20,
+        toX: enemy.x + 20,
+        toY: enemy.y + 20,
+        color: 0xff2e4d,
+        life: 0.2,
+        width: 5,
+      });
+    });
   }
 
   /** Повышает уровень скилла и автоматически открывает аугментацию на 3/7/10. */
@@ -58,11 +142,49 @@ export class SkillSystem {
     skill.level += 1;
     if (skill.level === 3 || skill.level === 7 || skill.level === 10) {
       unlockAugment(skill, skill.level);
+      if (skill.level === 3 && skill.id === 'lantern') {
+        this.state.player.pickupRadius *= 1.4;
+      }
     }
     return true;
   }
 
   private cast(skill: SkillInstance, def: SkillDefinition): boolean {
+    switch (skill.id) {
+      case 'kusarigama':
+        return castKusarigama(this.ctx, skill, def);
+      case 'lightning':
+        return castLightning(this.ctx, skill, def, this.bumpCast(skill.id));
+      case 'senbon':
+        return castSenbon(this.ctx, skill, def, this.bumpCast(skill.id));
+      case 'fireball':
+        return castFireball(this.ctx, skill, def);
+      case 'shadowClone':
+        return castShadowClone(this.ctx, skill, def);
+      case 'makibishi':
+        return castMakibishi(this.ctx, skill, def);
+      case 'iceFan':
+        return castIceFan(this.ctx, skill, def);
+      case 'crows':
+        return castCrows(this.ctx, skill, def);
+      case 'ghostDash':
+        return castGhostDash(this.ctx, skill, def);
+      case 'lantern':
+        return castLantern(this.ctx, skill, def, this.bumpCast(skill.id));
+      case 'bamboo':
+        return castBamboo(this.ctx, skill, def);
+      case 'oniMask':
+        return castOniMask(this.ctx, skill, def);
+      case 'waterDragon':
+        return castWaterDragon(this.ctx, skill, def);
+      case 'mirror':
+        return castMirror(this.ctx, skill, def);
+      case 'reaper':
+        return castReaper(this.ctx, skill, def);
+      default:
+        break;
+    }
+
     switch (def.behavior) {
       case 'projectile':
         return this.castKunai(skill, def);
@@ -77,6 +199,12 @@ export class SkillSystem {
       default:
         return false;
     }
+  }
+
+  private bumpCast(id: SkillId): number {
+    const next = (this.castCounts.get(id) ?? 0) + 1;
+    this.castCounts.set(id, next);
+    return next;
   }
 
   private nearestEnemy(maxDistance: number): EnemyEntity | null {
@@ -433,10 +561,13 @@ export class SkillSystem {
     if (hasAugmentFor(this.state, 'seals', 7) && enemy.sealTimer > 0) {
       this.explodeSeal(enemy, 2);
     }
-    if (!hasAugmentFor(this.state, 'smoke', 7)) return;
+    this.handleSmokeDeath(enemy);
+    this.handleIceDeath(enemy);
+    this.handleReaperDeath(enemy);
+  }
 
-    const smokeSkill = this.state.getSkill('smoke');
-    if (!smokeSkill) return;
+  private handleSmokeDeath(enemy: EnemyEntity): void {
+    if (!hasAugmentFor(this.state, 'smoke', 7)) return;
     this.world.zones.forEachActive((zone) => {
       if (zone.kind !== 'smoke' || zone.skillId !== 'smoke') return;
       const dx = enemy.x - zone.x;
@@ -458,9 +589,81 @@ export class SkillSystem {
     });
   }
 
+  private handleIceDeath(enemy: EnemyEntity): void {
+    const ice = this.state.getSkill('iceFan');
+    if (!ice || !hasAugment(ice, 7) || enemy.freezeTimer <= 0) return;
+    for (let i = 0; i < 8; i += 1) {
+      const angle = (i / 8) * Math.PI * 2;
+      this.world.spawnProjectile({
+        kind: 'iceShard',
+        x: enemy.x,
+        y: enemy.y,
+        vx: Math.cos(angle) * 520,
+        vy: Math.sin(angle) * 520,
+        damage: computeSkillStats(ice).damage * 0.5,
+        sourceSkill: 'iceFan',
+        pierce: 1,
+        lifetime: 0.6,
+        color: 0xbef7ff,
+        radius: 6,
+        freezeDuration: 0.5,
+      });
+    }
+  }
+
+  private handleReaperDeath(enemy: EnemyEntity): void {
+    const reaper = this.state.getSkill('reaper');
+    if (!reaper || !enemy.marked) return;
+    const stats = computeSkillStats(reaper);
+
+    if (hasAugment(reaper, 7)) {
+      const victims = this.world.enemyGrid.queryCircle(enemy.x, enemy.y, stats.radius, []);
+      this.world.spawnVfx({
+        kind: 'explosion',
+        x: enemy.x,
+        y: enemy.y,
+        color: 0xffffff,
+        life: 0.35,
+        radius: stats.radius,
+        width: 5,
+      });
+      for (const victim of victims) {
+        if (!victim.active || victim.hp <= 0 || victim.id === enemy.id) continue;
+        this.combat.damageEnemy(victim, stats.damage * 0.8, {
+          sourceSkill: 'reaper',
+          color: 0xffffff,
+          knockback: 14,
+        });
+      }
+      if (Math.random() < 0.2) {
+        this.world.spawnPickup('heal', enemy.x, enemy.y, 8);
+      }
+    }
+
+    if (hasAugment(reaper, 3)) {
+      const nearby = this.world.enemyGrid
+        .queryCircle(enemy.x, enemy.y, 280, [])
+        .find((victim) => victim.active && victim.hp > 0 && victim.id !== enemy.id);
+      if (nearby) {
+        nearby.marked = true;
+        this.world.spawnVfx({
+          kind: 'mark',
+          x: nearby.x,
+          y: nearby.y - nearby.radius - 10,
+          color: 0xffffff,
+          life: 0.5,
+          radius: 16,
+          width: 2,
+        });
+      }
+    }
+  }
+
   destroy(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
+    this.unlistenState?.();
+    this.unlistenState = null;
   }
 }
 

@@ -73,6 +73,8 @@ export type ProjectileKind =
   | 'soulFire'
   | 'phantomKunai'
   | 'cloneShot'
+  | 'crow'
+  | 'waterDragon'
   | 'enemyArrow';
 
 export interface ProjectileEntity extends Entity {
@@ -93,6 +95,10 @@ export interface ProjectileEntity extends Entity {
   trailTimer: number;
   color: number;
   scale: number;
+  explodeRadius: number;
+  explodeZone: ZoneKind | null;
+  explodeChildren: number;
+  freezeDuration: number;
 }
 
 export interface OrbitalEntity extends Entity {

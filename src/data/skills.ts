@@ -1,5 +1,7 @@
 import type { AugmentDefinition, SkillDefinition, SkillId, SkillInstance } from '@/types/game';
 import { getSynergyModifiers } from './synergies';
+import { SKILLS_EXTRA_1 } from './skillsExtra1';
+import { SKILLS_EXTRA_2 } from './skillsExtra2';
 
 /**
  * Декларативные конфиги скиллов. Здесь только числа/тексты/теги.
@@ -115,8 +117,8 @@ const sealAugments: readonly [AugmentDefinition, AugmentDefinition, AugmentDefin
   },
 ];
 
-export const SKILL_DEFINITIONS: Partial<Record<SkillId, SkillDefinition>> = {
-  kunai: {
+const BASE_SKILLS: SkillDefinition[] = [
+  {
     id: 'kunai',
     name: 'Кунаи Тьмы',
     description: 'Быстрый бросок в ближайшего врага.',
@@ -132,7 +134,7 @@ export const SKILL_DEFINITIONS: Partial<Record<SkillId, SkillDefinition>> = {
     ricochet: 0,
     augments: kunaiAugments,
   },
-  shuriken: {
+  {
     id: 'shuriken',
     name: 'Вихрь Сюрикенов',
     description: 'Сюрикены вращаются по орбите вокруг ниндзя.',
@@ -148,7 +150,7 @@ export const SKILL_DEFINITIONS: Partial<Record<SkillId, SkillDefinition>> = {
     ricochet: 0,
     augments: shurikenAugments,
   },
-  katana: {
+  {
     id: 'katana',
     name: 'Рассечение Катаной',
     description: 'Широкий серповидный удар перед героем.',
@@ -164,7 +166,7 @@ export const SKILL_DEFINITIONS: Partial<Record<SkillId, SkillDefinition>> = {
     ricochet: 0,
     augments: katanaAugments,
   },
-  smoke: {
+  {
     id: 'smoke',
     name: 'Ядовитая Дымовая Бомба',
     description: 'Бросает под врагов облако дыма с периодическим уроном.',
@@ -180,7 +182,7 @@ export const SKILL_DEFINITIONS: Partial<Record<SkillId, SkillDefinition>> = {
     ricochet: 0,
     augments: smokeAugments,
   },
-  seals: {
+  {
     id: 'seals',
     name: 'Взрывные Печати',
     description: 'Вешает бумажные бомбы, детонирующие через 1.2 сек.',
@@ -196,7 +198,13 @@ export const SKILL_DEFINITIONS: Partial<Record<SkillId, SkillDefinition>> = {
     ricochet: 0,
     augments: sealAugments,
   },
-};
+];
+
+const ALL_SKILLS: SkillDefinition[] = [...BASE_SKILLS, ...SKILLS_EXTRA_1, ...SKILLS_EXTRA_2];
+
+export const SKILL_DEFINITIONS: Partial<Record<SkillId, SkillDefinition>> = Object.fromEntries(
+  ALL_SKILLS.map((def) => [def.id, def]),
+);
 
 export function getSkillDefinition(id: SkillId): SkillDefinition | undefined {
   return SKILL_DEFINITIONS[id];

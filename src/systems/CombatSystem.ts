@@ -50,7 +50,8 @@ export class CombatSystem {
       return { damage: 0, crit: false, killed: false };
     }
 
-    const critChance = opts.critChance ?? this.state.player.critChance;
+    const frozenBonus = enemy.freezeTimer > 0 ? 0.35 : 0;
+    const critChance = (opts.critChance ?? this.state.player.critChance) + frozenBonus;
     const critMult = opts.critMult ?? this.state.player.critMult;
     const crit = Math.random() < critChance;
     let damage = baseDamage * (crit ? critMult : 1);
