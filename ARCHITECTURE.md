@@ -131,3 +131,17 @@ shadow-kunai/
 6. **Интерфейс и Сборка:** `PreRunDraft.ts`, `HudOverlay.ts`, `LevelUpModal.ts`, `GameOverModal.ts`, `UIManager.ts`, `main.ts`.
 7. **Масштабирование контента:** добивка оставшихся 15 скиллов в `skills.ts` (по 5 штук за промпт).
 8. **Android APK:** `capacitor.config.ts` + `.github/workflows/build-apk.yml`.
+
+## 4. Фактические дополнения к структуре
+
+В ходе реализации добавлены модули, которых не было в исходном дереве, чтобы держать файлы компактнее и не плодить циклические импорты:
+
+- `core/World.ts` — владелец всех пулов и `SpatialGrid`, фабрики спавна.
+- `core/entityFactories.ts` — фабрики и reset-функции пулов (аллокации только на старте).
+- `data/ultimate.ts` — тюнинг ульты.
+- `data/skillsExtra1.ts`, `data/skillsExtra2.ts` — оставшиеся 15 скиллов; `data/skills.ts` мёржит их в `SKILL_DEFINITIONS` и содержит расчёт статов.
+- `systems/AdvancedCastsA.ts`, `systems/AdvancedCastsB.ts`, `systems/castContext.ts` — касты 15 продвинутых скиллов, вынесенные из `SkillSystem`.
+- `ui/dom.ts` — DOM-хелперы UI.
+- `README.md` — сборка, управление, статус.
+
+Типы разбиты на `types/core.ts`, `types/skills.ts`, `types/entities.ts`, `types/run.ts`; `types/game.ts` — публичный баррель.
