@@ -76,6 +76,18 @@ export interface VfxSpawn {
   rotation?: number;
 }
 
+export interface OrbitalSpawn {
+  skillId: SkillId;
+  angle: number;
+  orbitRadius: number;
+  angularSpeed: number;
+  damage: number;
+  radius: number;
+  color?: number;
+  knockback?: number;
+  launchOnCrit?: boolean;
+}
+
 export interface ZoneSpawn {
   kind: ZoneKind;
   skillId: SkillId;
@@ -238,6 +250,23 @@ export class World {
     vfx.radius = opts.radius ?? 12;
     vfx.width = opts.width ?? 3;
     return vfx;
+  }
+
+  spawnOrbital(opts: OrbitalSpawn): OrbitalEntity | null {
+    const orbital = this.orbitals.acquire();
+    if (!orbital) return null;
+    orbital.skillId = opts.skillId;
+    orbital.angle = opts.angle;
+    orbital.orbitRadius = opts.orbitRadius;
+    orbital.angularSpeed = opts.angularSpeed;
+    orbital.damage = opts.damage;
+    orbital.radius = opts.radius;
+    orbital.color = opts.color ?? 0xbfefff;
+    orbital.knockback = opts.knockback ?? 0;
+    orbital.launchOnCrit = opts.launchOnCrit ?? false;
+    orbital.x = 0;
+    orbital.y = 0;
+    return orbital;
   }
 
   spawnZone(opts: ZoneSpawn): ZoneEntity | null {

@@ -241,11 +241,28 @@ export class ProjectileSystem {
       const reach = enemy.radius + orbital.radius;
       if (dx * dx + dy * dy > reach * reach) continue;
       orbital.hitCooldowns.set(enemy.id, ORBITAL_HIT_COOLDOWN);
-      this.combat.damageEnemy(enemy, orbital.damage, {
+      const result = this.combat.damageEnemy(enemy, orbital.damage, {
         sourceSkill: orbital.skillId,
         color: orbital.color,
-        knockback: 14,
+        knockback: orbital.knockback,
       });
+      if (result.crit && orbital.launchOnCrit && enemy.active) {
+        const angle = Math.atan2(enemy.y - orbital.y, enemy.x - orbital.x);
+        this.world.spawnProjectile({
+          kind: 'shuriken',
+          x: orbital.x,
+          y: orbital.y,
+          vx: Math.cos(angle) * 620,
+          vy: Math.sin(angle) * 620,
+          damage: orbital.damage * 0.8,
+          sourceSkill: orbital.skillId,
+          pierce: 2,
+          lifetime: 0.9,
+          color: orbital.color,
+          radius: orbital.radius * 0.9,
+          knockback: 6,
+        });
+      }
     }
   }
 }

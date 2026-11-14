@@ -10,6 +10,7 @@ import { EnemySystem } from '@/systems/EnemySystem';
 import { CombatSystem } from '@/systems/CombatSystem';
 import { ProjectileSystem } from '@/systems/ProjectileSystem';
 import { UltimateSystem } from '@/systems/UltimateSystem';
+import { SkillSystem } from '@/systems/SkillSystem';
 import { TextureFactory } from '@/render/TextureFactory';
 import { EntityRenderer } from '@/render/EntityRenderer';
 import { VfxRenderer } from '@/render/VfxRenderer';
@@ -119,6 +120,7 @@ async function boot(): Promise<void> {
     height: app.screen.height,
   }));
   const projectileSystem = new ProjectileSystem(state, world, combat, playerSystem);
+  const skillSystem = new SkillSystem(state, world, combat);
   const ultimateSystem = new UltimateSystem(state, world, combat, camera, () => ({
     width: app.screen.width,
     height: app.screen.height,
@@ -147,6 +149,9 @@ async function boot(): Promise<void> {
     if (event.type === 'playerDamaged') {
       camera.shake(7, 0.28);
     } else if (event.type === 'levelUp') {
+      const candidates = state.skills.filter((skill) => skill.level < 10);
+      const pick = candidates[Math.floor(Math.random() * candidates.length)];
+      if (pick) skillSystem.levelUpSkill(pick.id);
       camera.shake(2, 0.15);
       world.spawnVfx({
         kind: 'ring',
@@ -193,6 +198,7 @@ async function boot(): Promise<void> {
       combat.updateStatuses(dt);
       playerSystem.update(dt);
       enemySystem.update(dt);
+      skillSystem.update(dt);
       ultimateSystem.update(dt);
       if (state.autoUlt && ultimateSystem.canActivate()) ultimateSystem.tryActivate();
       projectileSystem.update(dt);
@@ -232,6 +238,11 @@ async function boot(): Promise<void> {
       state.player.level = 50;
       state.player.ultUnlocked = true;
       state.player.ultCharge = 100;
+    } else if (/^Digit[1-5]$/.test(event.code)) {
+      // Временный dev-хоткей: прокачать слот 1..5.
+      const index = Number(event.code.slice(5)) - 1;
+      const skill = state.skills[index];
+      if (skill) skillSystem.levelUpSkill(skill.id);
     }
   });
 

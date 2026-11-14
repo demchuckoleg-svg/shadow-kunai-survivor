@@ -102,7 +102,7 @@ export class PlayerSystem {
     while (player.xp >= player.nextLevelXp && player.level < MAX_CHARACTER_LEVEL) {
       player.xp -= player.nextLevelXp;
       player.level += 1;
-      player.nextLevelXp = Math.floor(player.nextLevelXp * 1.18 + 2);
+      player.nextLevelXp = Math.floor(5 + player.level * 3.2 + Math.pow(player.level, 1.35));
       this.state.stats.level = player.level;
       this.state.emit('levelUp', { level: player.level });
       if (player.level >= MAX_CHARACTER_LEVEL && !player.ultUnlocked) {

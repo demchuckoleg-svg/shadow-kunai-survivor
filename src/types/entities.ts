@@ -53,6 +53,9 @@ export interface EnemyEntity extends Entity {
   freezeTimer: number;
   burnTimer: number;
   bleedTimer: number;
+  sealTimer: number;
+  sealDamage: number;
+  sealRadius: number;
   marked: boolean;
   isElite: boolean;
 }
@@ -98,6 +101,8 @@ export interface OrbitalEntity extends Entity {
   orbitRadius: number;
   angularSpeed: number;
   damage: number;
+  knockback: number;
+  launchOnCrit: boolean;
   /** id врага -> остаток кулдауна повторного попадания. */
   hitCooldowns: Map<number, number>;
   color: number;

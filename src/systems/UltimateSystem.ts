@@ -249,7 +249,7 @@ export class UltimateSystem {
     let best: EnemyEntity | null = null;
     for (let i = 0; i < enemies.length; i += 1) {
       const enemy = enemies[i];
-      if (!enemy || !enemy.active) continue;
+      if (!enemy || !enemy.active || enemy.hp <= 0) continue;
       if (!best || enemy.hp > best.hp) best = enemy;
     }
     return best;

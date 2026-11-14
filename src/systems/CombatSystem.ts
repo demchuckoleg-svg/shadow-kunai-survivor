@@ -134,8 +134,8 @@ export class CombatSystem {
     });
     this.camera.shake(enemy.archetype === 'miniBoss' ? 10 : 2, enemy.archetype === 'miniBoss' ? 0.5 : 0.12);
 
-    this.world.enemies.release(enemy);
     for (const listener of this.killListeners) listener(enemy);
+    this.world.enemies.release(enemy);
   }
 
   private dropLoot(enemy: EnemyEntity): void {

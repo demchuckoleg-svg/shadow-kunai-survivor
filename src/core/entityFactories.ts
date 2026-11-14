@@ -36,6 +36,9 @@ export const createEnemyEntity = (id: number): EnemyEntity => ({
   freezeTimer: 0,
   burnTimer: 0,
   bleedTimer: 0,
+  sealTimer: 0,
+  sealDamage: 0,
+  sealRadius: 0,
   marked: false,
   isElite: false,
 });
@@ -54,6 +57,9 @@ export const resetEnemyEntity = (enemy: EnemyEntity): void => {
   enemy.freezeTimer = 0;
   enemy.burnTimer = 0;
   enemy.bleedTimer = 0;
+  enemy.sealTimer = 0;
+  enemy.sealDamage = 0;
+  enemy.sealRadius = 0;
   enemy.marked = false;
   enemy.isElite = false;
 };
@@ -206,11 +212,15 @@ export const createOrbitalEntity = (id: number): OrbitalEntity => ({
   orbitRadius: 90,
   angularSpeed: 3,
   damage: 1,
+  knockback: 0,
+  launchOnCrit: false,
   hitCooldowns: new Map<number, number>(),
   color: 0xbfefff,
 });
 
 export const resetOrbitalEntity = (orbital: OrbitalEntity): void => {
   orbital.angle = 0;
+  orbital.knockback = 0;
+  orbital.launchOnCrit = false;
   orbital.hitCooldowns.clear();
 };
