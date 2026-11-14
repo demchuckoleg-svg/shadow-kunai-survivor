@@ -274,6 +274,19 @@ export class ProjectileSystem {
   }
 
   private applyZoneTick(zone: ZoneEntity): void {
+    if (zone.kind === 'smoke' && Math.random() < 0.65) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * zone.radius * 0.7;
+      this.world.spawnVfx({
+        kind: 'smokePuff',
+        x: zone.x + Math.cos(angle) * distance,
+        y: zone.y + Math.sin(angle) * distance,
+        color: zone.color,
+        life: 0.7 + Math.random() * 0.4,
+        radius: 24 + Math.random() * 20,
+        rotation: Math.random() * Math.PI,
+      });
+    }
     const enemies = this.world.enemyGrid.queryCircle(zone.x, zone.y, zone.radius, this.world.enemyQuery);
     for (let i = 0; i < enemies.length; i += 1) {
       const enemy = enemies[i];

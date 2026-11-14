@@ -10,7 +10,7 @@ export const ENEMY_DEFINITIONS: Readonly<Record<EnemyArchetypeId, EnemyDefinitio
     radius: 14,
     armor: 0,
     xpValue: 1,
-    color: 0x8b5cf6,
+    color: 0x8d99ae,
     ai: 'chase',
     attackCooldown: 0.9,
     projectileSpeed: 0,
@@ -24,7 +24,7 @@ export const ENEMY_DEFINITIONS: Readonly<Record<EnemyArchetypeId, EnemyDefinitio
     radius: 11,
     armor: 0,
     xpValue: 1,
-    color: 0xff2e4d,
+    color: 0xe63946,
     ai: 'charge',
     attackCooldown: 0.7,
     projectileSpeed: 0,
@@ -38,7 +38,7 @@ export const ENEMY_DEFINITIONS: Readonly<Record<EnemyArchetypeId, EnemyDefinitio
     radius: 19,
     armor: 2,
     xpValue: 2,
-    color: 0xffc94a,
+    color: 0xd4af37,
     ai: 'chase',
     attackCooldown: 1.0,
     projectileSpeed: 0,
@@ -52,7 +52,7 @@ export const ENEMY_DEFINITIONS: Readonly<Record<EnemyArchetypeId, EnemyDefinitio
     radius: 13,
     armor: 0,
     xpValue: 2,
-    color: 0x35e6ff,
+    color: 0x2ec4b6,
     ai: 'strafeShoot',
     attackCooldown: 2.2,
     projectileSpeed: 240,
@@ -66,51 +66,22 @@ export const ENEMY_DEFINITIONS: Readonly<Record<EnemyArchetypeId, EnemyDefinitio
     radius: 34,
     armor: 4,
     xpValue: 25,
-    color: 0xff7a1a,
+    color: 0x8d99ae,
     ai: 'boss',
     attackCooldown: 1.8,
     projectileSpeed: 190,
   },
 };
 
-/** Таблица волн по минутам; берётся последняя подходящая запись. */
+/** Composition windows; spawn rate and HP scaling are exponential functions below. */
 export const WAVE_TABLE: readonly WaveEntry[] = [
-  { fromMinute: 0, archetypes: ['genin'], spawnRate: 1.1, hpMultiplier: 1.0, speedMultiplier: 1.0 },
-  {
-    fromMinute: 2,
-    archetypes: ['genin', 'assassin'],
-    spawnRate: 1.5,
-    hpMultiplier: 1.2,
-    speedMultiplier: 1.05,
-  },
-  {
-    fromMinute: 4,
-    archetypes: ['genin', 'assassin', 'archer'],
-    spawnRate: 1.8,
-    hpMultiplier: 1.55,
-    speedMultiplier: 1.1,
-  },
-  {
-    fromMinute: 6,
-    archetypes: ['genin', 'assassin', 'archer', 'samurai'],
-    spawnRate: 2.1,
-    hpMultiplier: 2.0,
-    speedMultiplier: 1.15,
-  },
-  {
-    fromMinute: 9,
-    archetypes: ['assassin', 'archer', 'samurai'],
-    spawnRate: 2.6,
-    hpMultiplier: 2.7,
-    speedMultiplier: 1.2,
-  },
-  {
-    fromMinute: 12,
-    archetypes: ['genin', 'assassin', 'archer', 'samurai'],
-    spawnRate: 3.2,
-    hpMultiplier: 3.6,
-    speedMultiplier: 1.25,
-  },
+  { fromMinute: 0, archetypes: ['genin'] },
+  { fromMinute: 2, archetypes: ['genin', 'assassin'] },
+  { fromMinute: 4, archetypes: ['genin', 'assassin', 'archer'] },
+  { fromMinute: 6, archetypes: ['genin', 'assassin', 'archer', 'samurai'] },
+  { fromMinute: 10, archetypes: ['assassin', 'archer', 'samurai', 'genin'] },
+  { fromMinute: 15, archetypes: ['assassin', 'archer', 'samurai'] },
+  { fromMinute: 20, archetypes: ['genin', 'assassin', 'archer', 'samurai'] },
 ];
 
 export function getWaveForMinute(minute: number): WaveEntry {
@@ -122,5 +93,34 @@ export function getWaveForMinute(minute: number): WaveEntry {
   return wave;
 }
 
-export const BOSS_INTERVAL_SECONDS = 180;
-export const MAX_ENEMIES_ALIVE = 420;
+export const BOSS_INTERVAL_SECONDS = 150;
+export const MAX_ENEMIES_ALIVE = 1100;
+export const MAX_SPAWNS_PER_FRAME = 30;
+
+/** Exponential horde pressure: ~1.1/s at start, ~8/s at 5 min, ~21/s at 10 min. */
+export function getSpawnRate(elapsed: number): number {
+  const t = Math.max(0, elapsed);
+  return 1.1 + 0.02 * t + 0.55 * (Math.exp(t / 210) - 1);
+}
+
+/** Exponential HP: ~5x at 5 min, ~24x at 10 min, ~106x at 15 min. */
+export function getHpMultiplier(elapsed: number): number {
+  const t = Math.max(0, elapsed);
+  return Math.exp(t / 240) * (1 + t / 600);
+}
+
+export function getSpeedMultiplier(elapsed: number): number {
+  return 1 + Math.min(0.6, Math.max(0, elapsed) / 1500);
+}
+
+export function getDamageMultiplier(elapsed: number): number {
+  return 1 + Math.min(2, Math.max(0, elapsed) / 900);
+}
+
+export function getEliteChance(elapsed: number): number {
+  return Math.min(0.18, 0.015 + Math.max(0, elapsed) / 4000);
+}
+
+export function getXpMultiplier(elapsed: number): number {
+  return Math.min(12, 1 + Math.max(0, elapsed) / 120);
+}

@@ -13,7 +13,7 @@ export interface EffectTextureSet {
   ring: Texture;
   line: Texture;
   spark: Texture;
-  zone: Texture;
+  smokePuff: Texture;
   mote: Texture;
 }
 
@@ -21,27 +21,74 @@ function drawPlayer(ctx: CanvasRenderingContext2D): void {
   ctx.save();
   ctx.translate(36, 36);
   inkShape(ctx, polygon(15, 8, -Math.PI / 2), P.slate, P.ink, P.crimson, 83);
-  ctx.strokeStyle = P.jade;
+
+  // Shoulder plates.
+  ctx.strokeStyle = P.outline;
+  ctx.lineWidth = 3;
+  ctx.fillStyle = P.ash;
+  ctx.beginPath();
+  ctx.arc(0, 0, 12, -1.9, -0.7);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(0, 0, 12, 0.7, 1.9);
+  ctx.stroke();
+
+  // Hood and mask.
+  ctx.fillStyle = P.ink;
+  ctx.strokeStyle = P.outline;
   ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(1, -2, 9, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = P.crimson;
+  ctx.fillRect(-4, -4, 10, 4);
+  ctx.fillStyle = P.outline;
+  ctx.fillRect(-4, -4, 10, 1.5);
+  ctx.fillStyle = P.jade;
+  ctx.beginPath();
+  ctx.ellipse(4, -4, 2, 1, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  // Crimson scarf knot.
+  ctx.fillStyle = P.crimson;
+  ctx.strokeStyle = P.outline;
+  ctx.lineWidth = 1.5;
+  ctx.beginPath();
+  ctx.ellipse(-6, 3, 4, 3, -0.4, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+
+  // Katana across the back.
+  ctx.strokeStyle = P.outline;
+  ctx.lineWidth = 5;
+  ctx.beginPath();
+  ctx.moveTo(-10, 11);
+  ctx.lineTo(17, -12);
+  ctx.stroke();
+  ctx.strokeStyle = P.bone;
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(-10, 11);
+  ctx.lineTo(17, -12);
+  ctx.stroke();
+  ctx.strokeStyle = P.gold;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(-3, 5);
+  ctx.lineTo(2, 9);
+  ctx.stroke();
+
+  // Jade rim.
+  ctx.strokeStyle = P.jade;
+  ctx.lineWidth = 1.6;
   ctx.beginPath();
   ctx.arc(0, 0, 15, 0, Math.PI * 2);
   ctx.stroke();
-  ctx.fillStyle = P.crimson;
-  ctx.beginPath();
-  ctx.arc(3, -3, 3.2, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.strokeStyle = P.bone;
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(12, 0);
-  ctx.lineTo(28, 0);
-  ctx.stroke();
-  ctx.fillStyle = P.goldLight;
-  ctx.beginPath();
-  ctx.arc(28, 0, 1.6, 0, Math.PI * 2);
-  ctx.fill();
   ctx.restore();
-  splatter(ctx, [[22, 22], [50, 22], [22, 50], [50, 50]], P.crimson, 89);
+
+  splatter(ctx, [[20, 20], [52, 20], [20, 52], [52, 52]], P.crimson, 89);
+  splatter(ctx, [[26, 50], [46, 14]], P.jade, 97);
 }
 
 export function createEffectTextures(): EffectTextureSet {
@@ -102,19 +149,33 @@ export function createEffectTextures(): EffectTextureSet {
       ctx.stroke();
       splatter(ctx, points, P.crimson, 41);
     }),
-    zone: texture(88, (ctx) => {
-      const g = ctx.createRadialGradient(44, 44, 4, 44, 44, 42);
-      g.addColorStop(0, 'rgba(241,250,238,0.10)');
-      g.addColorStop(0.7, 'rgba(241,250,238,0.16)');
-      g.addColorStop(1, 'rgba(241,250,238,0)');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, 88, 88);
-      ctx.strokeStyle = 'rgba(241,250,238,0.4)';
+    smokePuff: texture(64, (ctx) => {
+      const puffs = [
+        [22, 30, 17],
+        [40, 28, 16],
+        [32, 40, 18],
+      ] as const;
+      for (const [x, y, r] of puffs) {
+        const g = ctx.createRadialGradient(x - 3, y - 4, 1, x, y, r);
+        g.addColorStop(0, 'rgba(46,196,182,0.55)');
+        g.addColorStop(0.55, 'rgba(141,153,174,0.35)');
+        g.addColorStop(1, 'rgba(11,12,16,0)');
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.strokeStyle = 'rgba(5,5,7,0.4)';
       ctx.lineWidth = 1.5;
-      ctx.setLineDash([5, 6]);
       ctx.beginPath();
-      ctx.arc(44, 44, 40, 0, Math.PI * 2);
+      ctx.arc(32, 32, 20, 0.4, Math.PI * 1.6);
       ctx.stroke();
+      ctx.fillStyle = P.jade;
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.arc(44, 20, 1.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
     }),
     mote: texture(16, (ctx) => {
       const g = ctx.createRadialGradient(8, 8, 0.5, 8, 8, 7);

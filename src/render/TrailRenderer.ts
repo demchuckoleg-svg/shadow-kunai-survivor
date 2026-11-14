@@ -5,7 +5,7 @@
 
 import { Container, MeshRope, Point, type Texture } from 'pixi.js';
 import type { World } from '@/core/World';
-import type { ProjectileEntity } from '@/types/game';
+import type { PlayerState, ProjectileEntity } from '@/types/game';
 import { texture } from '@/assets/inkCanvas';
 
 const POOL_SIZE = 84;
@@ -36,6 +36,8 @@ export class TrailRenderer {
   readonly container = new Container();
   private readonly free: Ribbon[] = [];
   private readonly active = new Map<number, Ribbon>();
+  private readonly scarfPoints: Point[] = [];
+  private readonly scarf: MeshRope;
 
   constructor(private readonly world: World) {
     this.container.blendMode = 'add';
@@ -51,9 +53,17 @@ export class TrailRenderer {
       this.container.addChild(mesh);
       this.free.push({ mesh, points, life: 0 });
     }
+
+    for (let i = 0; i < 11; i += 1) this.scarfPoints.push(new Point(0, 0));
+    this.scarf = new MeshRope({ texture: tex, points: this.scarfPoints, width: 9, textureScale: 0 });
+    this.scarf.tint = 0xe63946;
+    this.scarf.alpha = 0.7;
+    this.scarf.blendMode = 'add';
+    this.container.addChild(this.scarf);
   }
 
-  update(dt: number): void {
+  update(dt: number, player: PlayerState): void {
+    this.updateScarf(dt, player);
     const items = this.world.projectiles.items;
     for (let i = 0; i < items.length; i += 1) {
       const projectile = items[i];
@@ -106,6 +116,23 @@ export class TrailRenderer {
     ribbon.mesh.tint = projectile.color;
     ribbon.mesh.alpha = 0.55;
     ribbon.life = SEGMENT_LIFE;
+  }
+
+  private updateScarf(dt: number, player: PlayerState): void {
+    const head = this.scarfPoints[0];
+    if (!head) return;
+    head.set(player.x, player.y);
+    const follow = Math.min(1, dt * 14);
+    for (let i = 1; i < this.scarfPoints.length; i += 1) {
+      const point = this.scarfPoints[i];
+      const previous = this.scarfPoints[i - 1];
+      if (!point || !previous) continue;
+      point.x += (previous.x - point.x) * follow;
+      point.y += (previous.y - point.y) * follow;
+    }
+    this.scarf.visible = player.alive;
+    this.scarf.alpha = player.invulnTimer > 0 ? 0.35 : 0.7;
+    this.scarf.scale.set(1);
   }
 
   clear(): void {

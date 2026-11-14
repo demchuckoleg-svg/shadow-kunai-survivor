@@ -36,6 +36,8 @@ export class VfxRenderer {
         return this.textures.line;
       case 'trail':
         return this.textures.glow;
+      case 'smokePuff':
+        return this.textures.smokePuff;
       case 'mark':
         return this.textures.ring;
       case 'hitFlash':
@@ -65,6 +67,7 @@ export class VfxRenderer {
       }
 
       sprite.texture = this.textureFor(vfx.kind);
+      sprite.blendMode = vfx.kind === 'smokePuff' ? 'normal' : 'add';
       const progress = vfx.maxLife > 0 ? 1 - vfx.life / vfx.maxLife : 1;
       const fade = Math.max(0, 1 - progress);
 
@@ -82,6 +85,12 @@ export class VfxRenderer {
         sprite.rotation = 0;
         sprite.scale.set((vfx.radius / 20) * grow);
         sprite.alpha = fade * 0.9;
+      } else if (vfx.kind === 'smokePuff') {
+        const grow = 0.8 + progress * 1.6;
+        sprite.position.set(vfx.x, vfx.y);
+        sprite.rotation = vfx.rotation + progress * 0.8;
+        sprite.scale.set((vfx.radius / 18) * grow);
+        sprite.alpha = fade * 0.55;
       } else {
         const grow = vfx.kind === 'explosion' ? 1 + progress * 1.2 : 1 - progress * 0.5;
         sprite.position.set(vfx.x, vfx.y);

@@ -7,6 +7,7 @@ import { Container, Sprite, TilingSprite } from 'pixi.js';
 import type { Camera } from '@/core/Camera';
 import { PALETTE as P } from '@/assets/palette';
 import { seeded, texture, type Ctx } from '@/assets/inkCanvas';
+import { createArenaSprites } from '@/assets/arenaSprites';
 import type { ProceduralSprites } from '@/assets/ProceduralSprites';
 
 const ARENA_HALF = 3400;
@@ -77,6 +78,8 @@ function drawEnso(ctx: Ctx, size: number): void {
 export class ArenaRenderer {
   readonly container = new Container();
   private readonly floor: TilingSprite;
+  private readonly farLayer = new Container();
+  private readonly nearLayer = new Container();
   private readonly motes: Mote[] = [];
 
   constructor(sprites: ProceduralSprites) {
@@ -90,7 +93,27 @@ export class ArenaRenderer {
     seal.position.set(0, 0);
     seal.alpha = 0.14;
 
-    this.container.addChild(this.floor, seal);
+    const decor = createArenaSprites();
+    this.addSprite(this.farLayer, decor.torii, -760, -860, 1.05, 0.5, 0);
+    this.addSprite(this.farLayer, decor.torii, 1180, 940, 0.9, 0.42, 0.06);
+    this.addSprite(this.farLayer, decor.shoji, -980, 380, 1.1, 0.38, 0);
+    this.addSprite(this.farLayer, decor.shoji, 1060, -220, 0.9, 0.34, 0);
+    this.addSprite(this.farLayer, decor.bamboo, -1380, -380, 1.2, 0.5, 0);
+    this.addSprite(this.farLayer, decor.bamboo, 1420, -820, 1.15, 0.46, 0);
+    this.addSprite(this.farLayer, decor.bamboo, 1260, 1180, 1.05, 0.42, 0);
+
+    this.addSprite(this.nearLayer, decor.lantern, -360, 420, 0.9, 0.9, 0);
+    this.addSprite(this.nearLayer, decor.lantern, 390, -520, 0.85, 0.9, 0);
+    this.addSprite(this.nearLayer, decor.lantern, -620, -240, 0.7, 0.8, 0);
+
+    for (let i = 0; i < 12; i += 1) {
+      const rand = seeded(401 + i);
+      const x = (rand() * 2 - 1) * 1350;
+      const y = (rand() * 2 - 1) * 1350;
+      this.addSprite(this.nearLayer, decor.stain, x, y, 0.8 + rand() * 1.4, 0.55, rand() * Math.PI);
+    }
+
+    this.container.addChild(this.floor, this.farLayer, seal, this.nearLayer);
 
     const rand = seeded(131);
     for (let i = 0; i < MOTE_COUNT; i += 1) {
@@ -110,7 +133,27 @@ export class ArenaRenderer {
     }
   }
 
+  private addSprite(
+    layer: Container,
+    tex: import('pixi.js').Texture,
+    x: number,
+    y: number,
+    scale: number,
+    alpha: number,
+    rotation: number,
+  ): void {
+    const sprite = new Sprite(tex);
+    sprite.anchor.set(0.5);
+    sprite.position.set(x, y);
+    sprite.scale.set(scale);
+    sprite.alpha = alpha;
+    sprite.rotation = rotation;
+    layer.addChild(sprite);
+  }
+
   update(dt: number, camera: Camera, screenW: number, screenH: number, time: number): void {
+    this.farLayer.position.set(camera.x * 0.08, camera.y * 0.08);
+    this.nearLayer.position.set(camera.x * 0.025, camera.y * 0.025);
     const halfW = screenW / (2 * Math.max(0.4, camera.zoom)) + 80;
     const halfH = screenH / (2 * Math.max(0.4, camera.zoom)) + 80;
     const left = camera.x - halfW;

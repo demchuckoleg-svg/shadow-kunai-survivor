@@ -78,13 +78,13 @@ export interface PoolSizes {
 }
 
 export const DEFAULT_POOL_SIZES: PoolSizes = {
-  enemies: 500,
-  projectiles: 800,
-  pickups: 300,
-  damageTexts: 150,
-  vfx: 400,
-  zones: 80,
-  orbitals: 40,
+  enemies: 1800,
+  projectiles: 1400,
+  pickups: 400,
+  damageTexts: 220,
+  vfx: 700,
+  zones: 100,
+  orbitals: 60,
 };
 
 /** Фиксированный шаг симуляции: 60 Гц. */

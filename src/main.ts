@@ -20,6 +20,13 @@ import { EntityRenderer } from '@/render/EntityRenderer';
 import { VfxRenderer } from '@/render/VfxRenderer';
 import { FloatingTextRenderer } from '@/render/FloatingText';
 import { UIManager } from '@/ui/UIManager';
+import {
+  bindAndroidBack,
+  bindKeyboard,
+  bindTactileButtons,
+  bindVisibilityPause,
+  exitApp,
+} from '@/ui/InputBindings';
 import { SoundEngine } from '@/audio/SoundEngine';
 import type { SkillId } from '@/types/game';
 
@@ -91,25 +98,54 @@ async function boot(): Promise<void> {
     juice.impact(info.crit ? 3.2 : 1.6, info.dirX, info.dirY, info.heavy ? 0.035 : 0);
   });
 
-  // Tactile UI: crimson flash + short vibration + synthesized click on every button.
-  document.addEventListener(
-    'pointerdown',
-    (event) => {
-      const target = event.target;
-      if (!(target instanceof Element)) return;
-      const node = target.closest('button');
-      if (!node) return;
-      navigator.vibrate?.(12);
-      sound.playUiClick();
-      node.classList.add('ui-flash');
-      window.setTimeout(() => node.classList.remove('ui-flash'), 60);
-    },
-    { passive: true },
-  );
+  bindTactileButtons(sound);
 
   let pendingLevels = 0;
   let levelUpOpen = false;
+  let userPaused = false;
   let hudTimer = 0;
+
+  const exitToMenu = (): void => {
+    userPaused = false;
+    pendingLevels = 0;
+    levelUpOpen = false;
+    ui.hidePause();
+    world.reset();
+    trailRenderer.clear();
+    state.phase = 'menu';
+    joystick.setEnabled(false);
+    loop.resume();
+    ui.showDraft();
+  };
+
+  const closePause = (): void => {
+    if (!userPaused) return;
+    userPaused = false;
+    state.phase = 'playing';
+    ui.hidePause();
+    joystick.setEnabled(true);
+    loop.resume();
+  };
+
+  const openPause = (): void => {
+    if (state.phase !== 'playing' || levelUpOpen) return;
+    userPaused = true;
+    state.phase = 'paused';
+    loop.pause();
+    joystick.setEnabled(false);
+    ui.showPause(state, { onResume: closePause, onExit: exitToMenu });
+  };
+
+  const handleEscape = (): void => {
+    if (state.phase === 'paused' && userPaused) closePause();
+    else if (state.phase === 'playing') openPause();
+  };
+
+  const handleBack = (): void => {
+    if (state.phase === 'paused' && userPaused) closePause();
+    else if (state.phase === 'playing') openPause();
+    else if (state.phase === 'menu' || state.phase === 'gameover') exitApp();
+  };
 
   const startRun = (loadout: SkillId[]): void => {
     world.reset();
@@ -122,6 +158,7 @@ async function boot(): Promise<void> {
     pendingLevels = 0;
     levelUpOpen = false;
     hudTimer = 0;
+    userPaused = false;
     joystick.setEnabled(true);
     ui.setAutoUlt(false);
     ui.showHud();
@@ -132,6 +169,7 @@ async function boot(): Promise<void> {
     loop.resume();
     world.reset();
     trailRenderer.clear();
+    userPaused = false;
     state.phase = 'menu';
     joystick.setEnabled(false);
     ui.showDraft();
@@ -172,6 +210,7 @@ async function boot(): Promise<void> {
     onAutoUlt: (enabled) => {
       state.autoUlt = enabled;
     },
+    onPause: () => openPause(),
   });
 
   state.on((event) => {
@@ -222,7 +261,7 @@ async function boot(): Promise<void> {
       ultimateSystem.update(dt);
       if (state.autoUlt && ultimateSystem.canActivate()) ultimateSystem.tryActivate();
       projectileSystem.update(dt);
-      trailRenderer.update(dt);
+      trailRenderer.update(dt, state.player);
       camera.follow(state.player, dt);
       camera.update(dt);
 
@@ -249,38 +288,22 @@ async function boot(): Promise<void> {
     },
   });
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.hidden) {
-      if (state.phase === 'playing') {
-        state.phase = 'paused';
-        joystick.setEnabled(false);
-        loop.pause();
-      }
-    } else if (state.phase === 'paused') {
-      state.phase = 'playing';
-      joystick.setEnabled(true);
-      loop.resume();
-    }
+  bindVisibilityPause(() => {
+    if (state.phase === 'playing') openPause();
   });
-
-  window.addEventListener('keydown', (event) => {
-    if (event.repeat) return;
-    const target = event.target;
-    if (target instanceof Element && target.closest('input, textarea, select')) return;
-    if (event.code === 'KeyQ' || event.code === 'Space') {
-      event.preventDefault();
-      ultimateSystem.tryActivate();
-    } else if (event.code === 'KeyU') {
-      // Временный dev-хоткей: мгновенно открыть ульту 50 уровня.
+  bindAndroidBack(handleBack);
+  bindKeyboard({
+    ultimate: () => ultimateSystem.tryActivate(),
+    pauseToggle: handleEscape,
+    unlockUltimate: () => {
       state.player.level = 50;
       state.player.ultUnlocked = true;
       state.player.ultCharge = 100;
-    } else if (/^Digit[1-5]$/.test(event.code)) {
-      // Временный dev-хоткей: прокачать слот 1..5 без карточки.
-      const index = Number(event.code.slice(5)) - 1;
+    },
+    levelSlot: (index) => {
       const skill = state.skills[index];
       if (skill) skillSystem.levelUpSkill(skill.id);
-    }
+    },
   });
 
   if (import.meta.env.DEV) {
@@ -293,6 +316,7 @@ async function boot(): Promise<void> {
       ultimateSystem,
       camera,
       sprites: textures,
+      enemySystem,
     };
   }
 

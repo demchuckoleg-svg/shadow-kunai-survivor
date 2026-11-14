@@ -1,6 +1,7 @@
 /**
- * Спавнер волн, ИИ врагов, контактный урон и стрельба лучников.
- * Зависимости: GameState, World, PlayerSystem, data/enemies.
+ * Wave spawner, enemy steering, contact damage and ranged attacks.
+ * Spawn rate and HP grow exponentially with run time.
+ * Dependencies: GameState, World, PlayerSystem, data/enemies.
  */
 
 import type { GameState } from '@/core/GameState';
@@ -12,11 +13,18 @@ import {
   BOSS_INTERVAL_SECONDS,
   ENEMY_DEFINITIONS,
   MAX_ENEMIES_ALIVE,
+  MAX_SPAWNS_PER_FRAME,
+  getDamageMultiplier,
+  getEliteChance,
+  getHpMultiplier,
+  getSpawnRate,
+  getSpeedMultiplier,
   getWaveForMinute,
+  getXpMultiplier,
 } from '@/data/enemies';
 
-const DESPAWN_DISTANCE = 2600;
-const BOSS_DESPAWN_DISTANCE = 4200;
+const DESPAWN_DISTANCE = 2800;
+const BOSS_DESPAWN_DISTANCE = 4400;
 
 export interface ViewportSize {
   width: number;
@@ -24,10 +32,9 @@ export interface ViewportSize {
 }
 
 export class EnemySystem {
-  private spawnTimer = 0;
-  private bossTimer = 0;
-  private nextBossAt = BOSS_INTERVAL_SECONDS;
+  private spawnAccumulator = 0;
   private elapsed = 0;
+  private nextBossAt = BOSS_INTERVAL_SECONDS;
 
   constructor(
     private readonly state: GameState,
@@ -38,8 +45,7 @@ export class EnemySystem {
   ) {}
 
   reset(): void {
-    this.spawnTimer = 0;
-    this.bossTimer = 0;
+    this.spawnAccumulator = 0;
     this.elapsed = 0;
     this.nextBossAt = BOSS_INTERVAL_SECONDS;
   }
@@ -47,10 +53,8 @@ export class EnemySystem {
   update(dt: number): void {
     if (!this.state.isRunning) return;
     this.elapsed += dt;
-    this.spawnTimer += dt;
-    this.bossTimer += dt;
 
-    this.spawnWave();
+    this.spawnHorde(dt);
 
     if (this.elapsed >= this.nextBossAt) {
       this.nextBossAt += BOSS_INTERVAL_SECONDS;
@@ -61,51 +65,56 @@ export class EnemySystem {
     this.world.rebuildEnemyGrid();
   }
 
-  private spawnWave(): void {
-    const wave = getWaveForMinute(this.state.timer.minute);
-    const interval = 1 / Math.max(0.05, wave.spawnRate);
-    if (this.spawnTimer < interval) return;
-    this.spawnTimer = 0;
+  private spawnHorde(dt: number): void {
+    this.spawnAccumulator += getSpawnRate(this.elapsed) * dt;
+    let spawned = 0;
 
-    if (this.world.enemies.activeCount >= MAX_ENEMIES_ALIVE) return;
-    const archetype = wave.archetypes[Math.floor(Math.random() * wave.archetypes.length)];
-    if (!archetype) return;
-    const def = ENEMY_DEFINITIONS[archetype];
-    const elite = this.elapsed > 300 && Math.random() < 0.04;
-    this.spawnAtEdge(def, wave.hpMultiplier, wave.speedMultiplier, elite);
+    while (this.spawnAccumulator >= 1 && spawned < MAX_SPAWNS_PER_FRAME) {
+      if (this.world.enemies.activeCount >= MAX_ENEMIES_ALIVE) {
+        this.spawnAccumulator = 0;
+        return;
+      }
+      this.spawnAccumulator -= 1;
+      spawned += 1;
+
+      const wave = getWaveForMinute(this.state.timer.minute);
+      const archetype = wave.archetypes[Math.floor(Math.random() * wave.archetypes.length)];
+      if (!archetype) continue;
+      const elite = Math.random() < getEliteChance(this.elapsed);
+      this.spawnAtEdge(ENEMY_DEFINITIONS[archetype], elite);
+    }
   }
 
   private spawnBoss(): void {
-    const wave = getWaveForMinute(this.state.timer.minute);
-    this.spawnAtEdge(ENEMY_DEFINITIONS.miniBoss, wave.hpMultiplier * 1.4, 1, false);
+    this.spawnAtEdge(ENEMY_DEFINITIONS.miniBoss, false, 1.6);
     this.world.spawnVfx({
       kind: 'shockwave',
       x: this.state.player.x,
       y: this.state.player.y,
-      color: 0xff7a1a,
+      color: 0xe63946,
       life: 0.6,
-      radius: 140,
-      width: 4,
+      radius: 160,
+      width: 5,
     });
     this.state.emit('bossSpawned', { at: this.elapsed });
   }
 
-  private spawnAtEdge(
-    def: EnemyDefinition,
-    hpMultiplier: number,
-    speedMultiplier: number,
-    elite: boolean,
-  ): void {
+  private spawnAtEdge(def: EnemyDefinition, elite: boolean, bossHpBonus = 1): void {
     const { width, height } = this.viewport();
     const halfDiagonal = Math.hypot(width, height) / (2 * Math.max(0.5, this.camera.zoom));
-    const distance = halfDiagonal + 80;
+    const distance = halfDiagonal + 90 + Math.random() * 120;
     const angle = Math.random() * Math.PI * 2;
     const x = this.state.player.x + Math.cos(angle) * distance;
     const y = this.state.player.y + Math.sin(angle) * distance;
+
+    const hpMultiplier = getHpMultiplier(this.elapsed) * bossHpBonus;
+    const speedMultiplier = getSpeedMultiplier(this.elapsed);
     const enemy = this.world.spawnEnemy(def, x, y, hpMultiplier, speedMultiplier, elite);
-    if (enemy && def.archetype === 'miniBoss') {
-      enemy.attackTimer = 1.2;
-    }
+    if (!enemy) return;
+
+    enemy.damage = Math.round(def.contactDamage * getDamageMultiplier(this.elapsed) * (elite ? 1.5 : 1));
+    enemy.xpValue = Math.max(1, Math.round(def.xpValue * getXpMultiplier(this.elapsed)));
+    if (def.archetype === 'miniBoss') enemy.attackTimer = 1.2;
   }
 
   private updateEnemy(enemy: EnemyEntity, dt: number): void {
@@ -155,26 +164,25 @@ export class EnemySystem {
     speed: number,
     dt: number,
   ): void {
-    const preferred = 260;
+    const preferred = 280;
     const radial = dist > preferred + 30 ? 1 : dist < preferred - 30 ? -1 : 0;
     const strafeSign = enemy.id % 2 === 0 ? 1 : -1;
-    enemy.vx = (dirX * radial + -dirY * strafeSign * 0.6) * speed;
+    enemy.vx = (dirX * radial - dirY * strafeSign * 0.6) * speed;
     enemy.vy = (dirY * radial + dirX * strafeSign * 0.6) * speed;
     enemy.x += enemy.vx * dt;
     enemy.y += enemy.vy * dt;
 
-    if (enemy.attackTimer <= 0 && dist < 520) {
-      const def = ENEMY_DEFINITIONS.archer;
-      enemy.attackTimer = def.attackCooldown;
+    if (enemy.attackTimer <= 0 && dist < 560) {
+      enemy.attackTimer = ENEMY_DEFINITIONS.archer.attackCooldown;
       this.world.spawnProjectile({
         kind: 'enemyArrow',
         x: enemy.x,
         y: enemy.y,
-        vx: dirX * def.projectileSpeed,
-        vy: dirY * def.projectileSpeed,
-        damage: 7,
+        vx: dirX * ENEMY_DEFINITIONS.archer.projectileSpeed,
+        vy: dirY * ENEMY_DEFINITIONS.archer.projectileSpeed,
+        damage: Math.round(enemy.damage * 0.7),
         faction: 'enemy',
-        color: 0x35e6ff,
+        color: 0x2ec4b6,
         radius: 5,
         lifetime: 3.5,
       });
@@ -185,21 +193,21 @@ export class EnemySystem {
     this.moveTowards(enemy, dirX, dirY, speed, dt);
     if (enemy.attackTimer > 0) return;
     enemy.attackTimer = ENEMY_DEFINITIONS.miniBoss.attackCooldown;
-    const count = 7;
+    const count = 9;
     const baseAngle = Math.atan2(dirY, dirX);
     for (let i = 0; i < count; i += 1) {
-      const angle = baseAngle + (i - (count - 1) / 2) * 0.22;
+      const angle = baseAngle + (i - (count - 1) / 2) * 0.2;
       this.world.spawnProjectile({
         kind: 'enemyArrow',
         x: enemy.x,
         y: enemy.y,
         vx: Math.cos(angle) * ENEMY_DEFINITIONS.miniBoss.projectileSpeed,
         vy: Math.sin(angle) * ENEMY_DEFINITIONS.miniBoss.projectileSpeed,
-        damage: 10,
+        damage: Math.round(enemy.damage * 0.55),
         faction: 'enemy',
-        color: 0xff7a1a,
+        color: 0xe63946,
         radius: 7,
-        lifetime: 4,
+        lifetime: 4.2,
       });
     }
   }

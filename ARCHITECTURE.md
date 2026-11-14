@@ -158,3 +158,8 @@ shadow-kunai/
 - `render/JuiceController.ts` — 35–60 ms hit-stop (`timeScale = 0.05`) and directional camera punch.
 - Fonts are bundled via `@fontsource`: Cinzel, PT Serif (Cyrillic), Noto Serif JP accents, JetBrains Mono.
 - `style.css` — Tailwind theme tokens, chamfer clip-paths, double-line panels, paper grain, tactile flash.
+- `assets/enemyDraw.ts`, `enemySprites.ts`, `enemySpritesB.ts` — layered enemy sprites + white hit-flash twins.
+- `assets/arenaSprites.ts` — torii, stone lantern, shoji, bamboo, ink stains.
+- `assets/zoneSprites.ts` — toxic smoke, lava, caltrops, bamboo wall, vortex, ice nova.
+- `ui/PauseMenu.ts` — pause actions + per-skill upgrade ledger (levels, damage, cooldown, augments).
+- Back handling uses `@capacitor/app` on Android and `Escape` on desktop.

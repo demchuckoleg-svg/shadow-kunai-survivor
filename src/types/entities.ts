@@ -28,13 +28,9 @@ export interface EnemyDefinition {
 }
 
 export interface WaveEntry {
-  /** Начало окна в минутах от старта забега. */
+  /** Start of the composition window, in minutes since run start. */
   fromMinute: number;
   archetypes: readonly EnemyArchetypeId[];
-  /** Врагов в секунду. */
-  spawnRate: number;
-  hpMultiplier: number;
-  speedMultiplier: number;
 }
 
 export interface EnemyEntity extends Entity {
@@ -153,7 +149,15 @@ export interface DamageTextEntity extends Entity {
 
 /* ============================== VFX =============================== */
 
-export type VfxKind = 'slash' | 'explosion' | 'ring' | 'trail' | 'shockwave' | 'mark' | 'hitFlash';
+export type VfxKind =
+  | 'slash'
+  | 'explosion'
+  | 'ring'
+  | 'trail'
+  | 'shockwave'
+  | 'mark'
+  | 'hitFlash'
+  | 'smokePuff';
 
 export interface VfxEntity extends Entity {
   kind: VfxKind;

@@ -26,7 +26,11 @@ export class HudOverlay {
   private readonly autoButton: HTMLButtonElement;
   private skillSignature = '';
 
-  constructor(onUltimate: () => void, onToggleAuto: (enabled: boolean) => void) {
+  constructor(
+    onUltimate: () => void,
+    onToggleAuto: (enabled: boolean) => void,
+    onPause: () => void,
+  ) {
     this.root = el('div', 'fixed inset-0 z-20 hidden');
     this.root.style.pointerEvents = 'none';
     this.root.style.padding =
@@ -82,6 +86,13 @@ export class HudOverlay {
     killsIcon.innerHTML = uiIcon('kills', 22);
     this.killsText = el('div', 'font-mono text-xl font-bold tabular-nums text-gold', '0');
     right.append(killsIcon, el('div', 'font-mono text-[8px] tracking-[0.24em] text-ash', 'УБИЙСТВА'), this.killsText);
+
+    const pauseButton = button('mt-1.5 grid h-8 w-8 place-items-center border border-ash/40 bg-ink/70', '');
+    pauseButton.style.pointerEvents = 'auto';
+    pauseButton.style.clipPath = 'var(--chamfer-sm)';
+    pauseButton.innerHTML = uiIcon('pause', 18);
+    pauseButton.addEventListener('click', onPause);
+    right.append(pauseButton);
 
     top.append(left, timerBox, right);
 

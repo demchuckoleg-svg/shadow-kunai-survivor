@@ -4,10 +4,11 @@
  */
 
 import type { Texture } from 'pixi.js';
-import type { EnemyArchetypeId, ProjectileKind } from '@/types/game';
+import type { EnemyArchetypeId, ProjectileKind, ZoneKind } from '@/types/game';
 import { createEnemyTextures } from './enemySprites';
 import { createProjectileTextures } from './projectileSprites';
 import { createEffectTextures } from './effectSprites';
+import { createZoneTextures } from './zoneSprites';
 
 export class ProceduralSprites {
   readonly enemy: Record<EnemyArchetypeId, Texture>;
@@ -21,7 +22,8 @@ export class ProceduralSprites {
   readonly ring: Texture;
   readonly line: Texture;
   readonly spark: Texture;
-  readonly zone: Texture;
+  readonly zoneKind: Record<ZoneKind, Texture>;
+  readonly smokePuff: Texture;
   readonly mote: Texture;
 
   constructor() {
@@ -39,7 +41,8 @@ export class ProceduralSprites {
     this.ring = effects.ring;
     this.line = effects.line;
     this.spark = effects.spark;
-    this.zone = effects.zone;
+    this.zoneKind = createZoneTextures();
+    this.smokePuff = effects.smokePuff;
     this.mote = effects.mote;
   }
 }

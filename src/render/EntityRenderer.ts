@@ -10,7 +10,13 @@ import type { EnemyArchetypeId, ProjectileKind } from '@/types/game';
 import { ULTIMATE_CONFIG } from '@/data/ultimate';
 import type { ProceduralSprites } from '@/assets/ProceduralSprites';
 
-const ENEMY_TEXTURE_RADIUS = 16;
+const ENEMY_DRAW_RADIUS: Record<EnemyArchetypeId, number> = {
+  genin: 24,
+  assassin: 24,
+  samurai: 26,
+  archer: 20,
+  miniBoss: 38,
+};
 
 export class EntityRenderer {
   readonly container = new Container();
@@ -94,7 +100,7 @@ export class EntityRenderer {
 
   private createZoneSprites(): void {
     for (let i = 0; i < this.world.zones.capacity; i += 1) {
-      const sprite = new Sprite(this.textures.zone);
+      const sprite = new Sprite(this.textures.zoneKind.smoke);
       sprite.anchor.set(0.5);
       sprite.visible = false;
       this.zoneSprites.push(sprite);
@@ -141,7 +147,7 @@ export class EntityRenderer {
       sprite.position.set(enemy.x, enemy.y);
       sprite.zIndex = enemy.y;
       const eliteScale = enemy.isElite ? 1.18 : 1;
-      sprite.scale.set((enemy.radius / ENEMY_TEXTURE_RADIUS) * eliteScale);
+      sprite.scale.set((enemy.radius / ENEMY_DRAW_RADIUS[enemy.archetype]) * eliteScale);
       sprite.rotation = 0;
       sprite.tint = !flashing && enemy.isElite ? 0xffe0a8 : 0xffffff;
       sprite.alpha = enemy.freezeTimer > 0 ? 0.75 : 1;
@@ -195,11 +201,18 @@ export class EntityRenderer {
       sprite.visible = zone.active;
       if (!zone.active) continue;
 
+      sprite.texture = this.textures.zoneKind[zone.kind];
       sprite.position.set(zone.x, zone.y);
-      sprite.scale.set(Math.max(0.2, zone.radius / 40));
+      const pulse = zone.kind === 'smoke' ? 1 + Math.sin(zone.duration * 6) * 0.04 : 1;
+      sprite.scale.set(Math.max(0.2, (zone.radius * 2 * pulse) / 128));
       sprite.tint = zone.color;
-      sprite.alpha = 0.85;
-      sprite.rotation = zone.kind === 'vortex' ? zone.duration * 2.2 : 0;
+      sprite.alpha = zone.kind === 'smoke' ? 0.8 : 0.92;
+      sprite.rotation =
+        zone.kind === 'vortex' || zone.kind === 'iceStorm'
+          ? zone.duration * 2.2
+          : zone.kind === 'smoke'
+            ? zone.duration * 0.4
+            : 0;
     }
   }
 

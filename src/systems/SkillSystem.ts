@@ -441,6 +441,19 @@ export class SkillSystem {
       radius: stats.radius,
       width: 3,
     });
+    for (let i = 0; i < 7; i += 1) {
+      const angle = Math.random() * Math.PI * 2;
+      const distance = Math.random() * stats.radius * 0.65;
+      this.world.spawnVfx({
+        kind: 'smokePuff',
+        x: x + Math.cos(angle) * distance,
+        y: y + Math.sin(angle) * distance,
+        color: def.color,
+        life: 0.6 + Math.random() * 0.5,
+        radius: 26 + Math.random() * 22,
+        rotation: Math.random() * Math.PI,
+      });
+    }
     return true;
   }
 

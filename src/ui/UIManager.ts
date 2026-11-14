@@ -9,12 +9,14 @@ import { HudOverlay } from './HudOverlay';
 import { GameOverModal } from './GameOverModal';
 import { LevelUpModal } from './LevelUpModal';
 import { PreRunDraft } from './PreRunDraft';
+import { PauseMenu, type PauseActions } from './PauseMenu';
 
 export interface UICallbacks {
   onStart: (loadout: SkillId[]) => void;
   onRestart: () => void;
   onUltimate: () => void;
   onAutoUlt: (enabled: boolean) => void;
+  onPause: () => void;
 }
 
 export class UIManager {
@@ -24,7 +26,7 @@ export class UIManager {
 
   constructor(container: HTMLElement, private readonly callbacks: UICallbacks) {
     this.container = container;
-    this.hud = new HudOverlay(callbacks.onUltimate, callbacks.onAutoUlt);
+    this.hud = new HudOverlay(callbacks.onUltimate, callbacks.onAutoUlt, callbacks.onPause);
     this.container.appendChild(this.hud.root);
   }
 
@@ -49,6 +51,16 @@ export class UIManager {
       onPick(card);
     });
     this.mount(modal.root);
+  }
+
+  showPause(state: GameState, actions: PauseActions): void {
+    this.clearOverlay();
+    const menu = new PauseMenu(state, actions);
+    this.mount(menu.root);
+  }
+
+  hidePause(): void {
+    this.clearOverlay();
   }
 
   showGameOver(stats: RunStats): void {
