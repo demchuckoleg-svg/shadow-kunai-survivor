@@ -1,0 +1,23 @@
+{
+  "name": "shadow-kunai-survivor",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Shadow Kunai: Survivor — top-down 2D hack-n-slash bullet heaven for Android",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "pixi.js": "^8.23.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.5",
+    "@types/node": "^26.6.6",
+    "tailwindcss": "^4.3.5",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}
