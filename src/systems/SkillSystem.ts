@@ -40,7 +40,6 @@ export class SkillSystem {
     if (!this.state.isRunning) return;
     this.updateSeals(dt);
     for (const skill of this.state.skills) {
-      if (skill.isEvolved) continue;
       const def = getSkillDefinition(skill.id);
       if (!def) continue;
       skill.cooldownTimer -= dt;

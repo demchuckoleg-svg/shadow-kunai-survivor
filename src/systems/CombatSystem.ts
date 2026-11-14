@@ -76,6 +76,16 @@ export class CombatSystem {
       skill.totalDamageDealt += damage;
       skill.hitCount += 1;
       if (crit) skill.critCount += 1;
+      const entry = this.state.stats.perSkill[skill.id] ?? {
+        damage: 0,
+        hits: 0,
+        crits: 0,
+        kills: 0,
+      };
+      entry.damage += damage;
+      entry.hits += 1;
+      if (crit) entry.crits += 1;
+      this.state.stats.perSkill[skill.id] = entry;
     }
     if (opts.showText !== false) {
       this.world.spawnDamageText(enemy.x, enemy.y - enemy.radius, damage, crit, opts.color ?? 0xffffff);
@@ -119,7 +129,16 @@ export class CombatSystem {
   killEnemy(enemy: EnemyEntity, sourceSkill: SkillId | null): void {
     if (!enemy.active) return;
     this.state.addKill();
-    void sourceSkill;
+    if (sourceSkill) {
+      const skill = this.state.getSkill(sourceSkill);
+      const entry = skill
+        ? (this.state.stats.perSkill[skill.id] ?? { damage: 0, hits: 0, crits: 0, kills: 0 })
+        : null;
+      if (entry) {
+        entry.kills += 1;
+        this.state.stats.perSkill[sourceSkill] = entry;
+      }
+    }
 
     this.dropLoot(enemy);
 

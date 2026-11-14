@@ -74,6 +74,7 @@ export function createSkillInstance(id: SkillId, level = 1): SkillInstance {
     augmentsUnlocked: {},
     isEvolved: false,
     evolvedFrom: [],
+    synergyId: null,
     totalDamageDealt: 0,
     hitCount: 0,
     critCount: 0,

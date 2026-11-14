@@ -176,6 +176,8 @@ export interface SkillInstance {
   augmentsUnlocked: Partial<Record<AugmentLevel, string>>;
   isEvolved: boolean;
   evolvedFrom: readonly SkillId[];
+  /** Если скилл — результат слияния, здесь его рецепт. */
+  synergyId: SynergyId | null;
   totalDamageDealt: number;
   hitCount: number;
   critCount: number;

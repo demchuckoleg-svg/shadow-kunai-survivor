@@ -11,14 +11,16 @@ import { CombatSystem } from '@/systems/CombatSystem';
 import { ProjectileSystem } from '@/systems/ProjectileSystem';
 import { UltimateSystem } from '@/systems/UltimateSystem';
 import { SkillSystem } from '@/systems/SkillSystem';
+import { ProgressionSystem } from '@/systems/ProgressionSystem';
 import { TextureFactory } from '@/render/TextureFactory';
 import { EntityRenderer } from '@/render/EntityRenderer';
 import { VfxRenderer } from '@/render/VfxRenderer';
 import { FloatingTextRenderer } from '@/render/FloatingText';
+import { UIManager } from '@/ui/UIManager';
 import type { SkillId } from '@/types/game';
 
 const GAME_ROOT_ID = 'game-root';
-const DEMO_LOADOUT: readonly SkillId[] = ['kunai', 'shuriken', 'katana', 'smoke', 'seals'];
+const UI_ROOT_ID = 'ui-root';
 const ARENA_HALF = 3400;
 
 function createArena(): Container {
@@ -39,59 +41,10 @@ function createArena(): Container {
   return arena;
 }
 
-function createDebugHud(): HTMLDivElement {
-  const hud = document.createElement('div');
-  hud.dataset.ui = 'hud';
-  hud.style.cssText = [
-    'position:fixed',
-    'left:12px',
-    'top:calc(12px + env(safe-area-inset-top, 0px))',
-    'font:600 12px/1.5 ui-monospace, SFMono-Regular, monospace',
-    'color:#cfe9ff',
-    'background:rgba(7,7,13,0.55)',
-    'border:1px solid rgba(53,230,255,0.25)',
-    'border-radius:8px',
-    'padding:6px 9px',
-    'pointer-events:none',
-    'white-space:pre',
-    'z-index:30',
-  ].join(';');
-  document.body.appendChild(hud);
-  return hud;
-}
-
-function createUltButton(onPress: () => void): HTMLButtonElement {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.dataset.ui = 'ult';
-  button.style.cssText = [
-    'position:fixed',
-    'right:calc(18px + env(safe-area-inset-right, 0px))',
-    'bottom:calc(24px + env(safe-area-inset-bottom, 0px))',
-    'width:82px',
-    'height:82px',
-    'border-radius:9999px',
-    'display:none',
-    'place-items:center',
-    'white-space:pre',
-    'font:800 13px/1.25 ui-monospace, monospace',
-    'letter-spacing:0.5px',
-    'color:#ffe9ee',
-    'background:radial-gradient(circle at 35% 30%, rgba(255,46,77,0.85), rgba(90,6,24,0.92))',
-    'border:2px solid rgba(255,120,140,0.8)',
-    'box-shadow:0 0 26px rgba(255,46,77,0.55)',
-    'z-index:35',
-    'touch-action:none',
-    'transition:opacity 120ms ease, transform 120ms ease',
-  ].join(';');
-  button.addEventListener('click', onPress);
-  document.body.appendChild(button);
-  return button;
-}
-
 async function boot(): Promise<void> {
   const host = document.getElementById(GAME_ROOT_ID);
-  if (!host) throw new Error(`#${GAME_ROOT_ID} not found`);
+  const uiRoot = document.getElementById(UI_ROOT_ID);
+  if (!host || !uiRoot) throw new Error('Game roots not found');
 
   const app = new Application();
   await app.init({
@@ -107,8 +60,6 @@ async function boot(): Promise<void> {
   host.appendChild(app.canvas);
 
   const state = new GameState();
-  state.startRun(DEMO_LOADOUT);
-
   const world = new World();
   const camera = new Camera();
   camera.snapTo(state.player);
@@ -125,6 +76,7 @@ async function boot(): Promise<void> {
     width: app.screen.width,
     height: app.screen.height,
   }));
+  const progression = new ProgressionSystem(state, skillSystem);
 
   const textures = new TextureFactory(app.renderer);
   const entityRenderer = new EntityRenderer(world, textures);
@@ -142,55 +94,94 @@ async function boot(): Promise<void> {
   app.stage.addChild(worldContainer);
 
   const joystick = new TouchJoystick(state.input);
-  const hud = createDebugHud();
-  const ultButton = createUltButton(() => ultimateSystem.tryActivate());
 
-  state.on((event) => {
-    if (event.type === 'playerDamaged') {
-      camera.shake(7, 0.28);
-    } else if (event.type === 'levelUp') {
-      const candidates = state.skills.filter((skill) => skill.level < 10);
-      const pick = candidates[Math.floor(Math.random() * candidates.length)];
-      if (pick) skillSystem.levelUpSkill(pick.id);
-      camera.shake(2, 0.15);
-      world.spawnVfx({
-        kind: 'ring',
-        x: state.player.x,
-        y: state.player.y,
-        color: 0x35e6ff,
-        life: 0.5,
-        radius: 60,
-        width: 3,
-      });
-    } else if (event.type === 'xpGained') {
-    } else if (event.type === 'bossSpawned') {
-      camera.shake(12, 0.6);
-    } else if (event.type === 'runEnded') {
-      joystick.setEnabled(false);
+  let pendingLevels = 0;
+  let levelUpOpen = false;
+  let hudTimer = 0;
+
+  const startRun = (loadout: SkillId[]): void => {
+    world.reset();
+    camera.reset();
+    enemySystem.reset();
+    state.startRun(loadout);
+    camera.snapTo(state.player);
+    pendingLevels = 0;
+    levelUpOpen = false;
+    hudTimer = 0;
+    joystick.setEnabled(true);
+    ui.setAutoUlt(false);
+    ui.showHud();
+    loop.resume();
+  };
+
+  const restartRun = (): void => {
+    loop.resume();
+    world.reset();
+    state.phase = 'menu';
+    joystick.setEnabled(false);
+    ui.showDraft();
+  };
+
+  const finishLevelUp = (): void => {
+    pendingLevels = 0;
+    levelUpOpen = false;
+    state.phase = 'playing';
+    joystick.setEnabled(true);
+    loop.resume();
+  };
+
+  const openLevelUp = (): void => {
+    if (pendingLevels <= 0 || levelUpOpen) return;
+    levelUpOpen = true;
+    state.phase = 'levelup';
+    loop.pause();
+    joystick.setEnabled(false);
+    const cards = progression.generateCards();
+    if (cards.length === 0) {
+      finishLevelUp();
+      return;
     }
+    ui.showLevelUp(state.player.level, cards, (card) => {
+      progression.apply(card);
+      pendingLevels -= 1;
+      levelUpOpen = false;
+      if (pendingLevels > 0) openLevelUp();
+      else finishLevelUp();
+    });
+  };
+
+  const ui = new UIManager(uiRoot, {
+    onStart: startRun,
+    onRestart: restartRun,
+    onUltimate: () => ultimateSystem.tryActivate(),
+    onAutoUlt: (enabled) => {
+      state.autoUlt = enabled;
+    },
   });
 
-  let hudTimer = 0;
-  const refreshHud = (): void => {
-    const player = state.player;
-    const minutes = Math.floor(state.timer.elapsed / 60);
-    const seconds = Math.floor(state.timer.elapsed % 60);
-    hud.textContent =
-      `HP ${Math.ceil(player.hp)}/${player.maxHp}   LV ${player.level}\n` +
-      `XP ${player.xp}/${player.nextLevelXp}   KILLS ${state.kills}\n` +
-      `TIME ${minutes}:${String(seconds).padStart(2, '0')}   ULT ${Math.floor(player.ultCharge)}%`;
-
-    ultButton.style.display = player.ultUnlocked ? 'grid' : 'none';
-    if (player.ultUnlocked) {
-      const ready = ultimateSystem.canActivate();
-      ultButton.disabled = !ready;
-      ultButton.style.opacity = ready ? '1' : '0.55';
-      ultButton.textContent = ultimateSystem.isActive
-        ? 'ОГИ!'
-        : `УЛЬТ\n${Math.floor(player.ultCharge)}%`;
+  state.on((event) => {
+    switch (event.type) {
+      case 'levelUp':
+        pendingLevels += 1;
+        if (!levelUpOpen && state.phase === 'playing') openLevelUp();
+        break;
+      case 'playerDamaged':
+        camera.shake(7, 0.28);
+        break;
+      case 'bossSpawned':
+        camera.shake(12, 0.6);
+        break;
+      case 'runEnded':
+        joystick.setEnabled(false);
+        ui.showGameOver(state.stats);
+        break;
+      case 'synergyForged':
+        camera.shake(9, 0.45);
+        break;
+      default:
+        break;
     }
-  };
-  refreshHud();
+  });
 
   const loop = new GameLoop({
     update: (dt) => {
@@ -208,7 +199,7 @@ async function boot(): Promise<void> {
       hudTimer += dt;
       if (hudTimer >= 0.2) {
         hudTimer = 0;
-        refreshHud();
+        ui.updateHud(state, ultimateSystem.canActivate(), ultimateSystem.isActive);
       }
     },
     render: (_alpha, frameDt) => {
@@ -239,14 +230,14 @@ async function boot(): Promise<void> {
       state.player.ultUnlocked = true;
       state.player.ultCharge = 100;
     } else if (/^Digit[1-5]$/.test(event.code)) {
-      // Временный dev-хоткей: прокачать слот 1..5.
+      // Временный dev-хоткей: прокачать слот 1..5 без карточки.
       const index = Number(event.code.slice(5)) - 1;
       const skill = state.skills[index];
       if (skill) skillSystem.levelUpSkill(skill.id);
     }
   });
 
-  joystick.setEnabled(true);
+  ui.showDraft();
   loop.start();
 }
 

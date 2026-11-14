@@ -1,4 +1,5 @@
 import type { AugmentDefinition, SkillDefinition, SkillId, SkillInstance } from '@/types/game';
+import { getSynergyModifiers } from './synergies';
 
 /**
  * Декларативные конфиги скиллов. Здесь только числа/тексты/теги.
@@ -221,6 +222,13 @@ export function computeSkillStats(skill: SkillInstance): ComputedSkillStats {
   let cooldownMultiplier = Math.max(0.42, 1 - 0.08 * (level - 1));
   let radiusMultiplier = 1 + 0.05 * (level - 1);
 
+  if (skill.synergyId) {
+    const synergyMods = getSynergyModifiers(skill.synergyId);
+    damageMultiplier *= synergyMods.damageMultiplier ?? 1;
+    cooldownMultiplier *= synergyMods.cooldownMultiplier ?? 1;
+    radiusMultiplier *= synergyMods.radiusMultiplier ?? 1;
+  }
+
   for (const augment of def.augments) {
     if (skill.augmentsUnlocked[augment.level] === undefined) continue;
     const mods = augment.modifiers;
@@ -233,7 +241,10 @@ export function computeSkillStats(skill: SkillInstance): ComputedSkillStats {
   return {
     damage: def.baseDamage * damageMultiplier,
     cooldown: def.baseCooldown * cooldownMultiplier,
-    projectiles: def.projectileCount + Math.floor((level - 1) / 3),
+    projectiles:
+      def.projectileCount +
+      Math.floor((level - 1) / 3) +
+      (skill.synergyId ? (getSynergyModifiers(skill.synergyId).projectileBonus ?? 0) : 0),
     radius: def.radius * radiusMultiplier,
     speed: def.projectileSpeed,
   };
