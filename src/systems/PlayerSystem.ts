@@ -28,6 +28,11 @@ export class PlayerSystem {
 
   private move(dt: number): void {
     const player = this.state.player;
+    if (this.state.ultimate.active) {
+      player.vx = 0;
+      player.vy = 0;
+      return;
+    }
     const input = this.state.input;
     const boost = player.speedBoostTimer > 0 ? 1.2 : 1;
     const speed = player.speed * boost;

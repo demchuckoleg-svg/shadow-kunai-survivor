@@ -113,6 +113,8 @@ export class GameState {
   ultimate: UltimateState = createUltimateState();
   timer: RunTimer = { elapsed: 0, minute: 0 };
   kills = 0;
+  autoUlt = false;
+  ultReadyAnnounced = false;
   stats: RunStats = createRunStats();
 
   private readonly listeners = new Set<GameEventHandler>();
@@ -143,6 +145,8 @@ export class GameState {
     this.ultimate = createUltimateState();
     this.timer = { elapsed: 0, minute: 0 };
     this.kills = 0;
+    this.autoUlt = false;
+    this.ultReadyAnnounced = false;
     this.stats = createRunStats();
     this.resetInput();
     this.phase = 'playing';
@@ -165,10 +169,7 @@ export class GameState {
     this.player.attackSpeedBuffTimer = Math.max(0, this.player.attackSpeedBuffTimer - dt);
     // Пассивная зарядка ульты: 100% за passiveChargeSeconds.
     if (this.player.ultUnlocked) {
-      this.player.ultCharge = Math.min(
-        100,
-        this.player.ultCharge + (100 / ULTIMATE_CONFIG.passiveChargeSeconds) * dt,
-      );
+      this.addUltCharge((100 / ULTIMATE_CONFIG.passiveChargeSeconds) * dt);
     }
   }
 
@@ -185,6 +186,11 @@ export class GameState {
   addUltCharge(value: number): void {
     if (!this.player.ultUnlocked) return;
     this.player.ultCharge = Math.min(100, this.player.ultCharge + value);
+    if (this.player.ultCharge < 99) this.ultReadyAnnounced = false;
+    if (this.player.ultCharge >= 100 && !this.ultReadyAnnounced) {
+      this.ultReadyAnnounced = true;
+      this.emit('ultimateReady');
+    }
   }
 
   getSkill(id: SkillId): SkillInstance | undefined {

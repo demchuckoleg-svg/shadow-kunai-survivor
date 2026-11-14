@@ -7,6 +7,7 @@ import type { GameState } from '@/core/GameState';
 import type { World } from '@/core/World';
 import type { Camera } from '@/core/Camera';
 import type { EnemyEntity, SkillId } from '@/types/game';
+import { ULT_CHARGE_PER_DAMAGE } from '@/data/ultimate';
 
 export interface DamageOptions {
   critChance?: number;
@@ -69,6 +70,7 @@ export class CombatSystem {
     }
 
     this.state.stats.totalDamage += damage;
+    this.state.addUltCharge(damage * ULT_CHARGE_PER_DAMAGE);
     const skill = opts.sourceSkill ? this.state.getSkill(opts.sourceSkill) : undefined;
     if (skill) {
       skill.totalDamageDealt += damage;

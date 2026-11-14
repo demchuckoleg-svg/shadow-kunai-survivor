@@ -9,6 +9,7 @@ import { PlayerSystem } from '@/systems/PlayerSystem';
 import { EnemySystem } from '@/systems/EnemySystem';
 import { CombatSystem } from '@/systems/CombatSystem';
 import { ProjectileSystem } from '@/systems/ProjectileSystem';
+import { UltimateSystem } from '@/systems/UltimateSystem';
 import { TextureFactory } from '@/render/TextureFactory';
 import { EntityRenderer } from '@/render/EntityRenderer';
 import { VfxRenderer } from '@/render/VfxRenderer';
@@ -58,6 +59,35 @@ function createDebugHud(): HTMLDivElement {
   return hud;
 }
 
+function createUltButton(onPress: () => void): HTMLButtonElement {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.dataset.ui = 'ult';
+  button.style.cssText = [
+    'position:fixed',
+    'right:calc(18px + env(safe-area-inset-right, 0px))',
+    'bottom:calc(24px + env(safe-area-inset-bottom, 0px))',
+    'width:82px',
+    'height:82px',
+    'border-radius:9999px',
+    'display:none',
+    'place-items:center',
+    'white-space:pre',
+    'font:800 13px/1.25 ui-monospace, monospace',
+    'letter-spacing:0.5px',
+    'color:#ffe9ee',
+    'background:radial-gradient(circle at 35% 30%, rgba(255,46,77,0.85), rgba(90,6,24,0.92))',
+    'border:2px solid rgba(255,120,140,0.8)',
+    'box-shadow:0 0 26px rgba(255,46,77,0.55)',
+    'z-index:35',
+    'touch-action:none',
+    'transition:opacity 120ms ease, transform 120ms ease',
+  ].join(';');
+  button.addEventListener('click', onPress);
+  document.body.appendChild(button);
+  return button;
+}
+
 async function boot(): Promise<void> {
   const host = document.getElementById(GAME_ROOT_ID);
   if (!host) throw new Error(`#${GAME_ROOT_ID} not found`);
@@ -89,6 +119,10 @@ async function boot(): Promise<void> {
     height: app.screen.height,
   }));
   const projectileSystem = new ProjectileSystem(state, world, combat, playerSystem);
+  const ultimateSystem = new UltimateSystem(state, world, combat, camera, () => ({
+    width: app.screen.width,
+    height: app.screen.height,
+  }));
 
   const textures = new TextureFactory(app.renderer);
   const entityRenderer = new EntityRenderer(world, textures);
@@ -107,6 +141,7 @@ async function boot(): Promise<void> {
 
   const joystick = new TouchJoystick(state.input);
   const hud = createDebugHud();
+  const ultButton = createUltButton(() => ultimateSystem.tryActivate());
 
   state.on((event) => {
     if (event.type === 'playerDamaged') {
@@ -139,6 +174,16 @@ async function boot(): Promise<void> {
       `HP ${Math.ceil(player.hp)}/${player.maxHp}   LV ${player.level}\n` +
       `XP ${player.xp}/${player.nextLevelXp}   KILLS ${state.kills}\n` +
       `TIME ${minutes}:${String(seconds).padStart(2, '0')}   ULT ${Math.floor(player.ultCharge)}%`;
+
+    ultButton.style.display = player.ultUnlocked ? 'grid' : 'none';
+    if (player.ultUnlocked) {
+      const ready = ultimateSystem.canActivate();
+      ultButton.disabled = !ready;
+      ultButton.style.opacity = ready ? '1' : '0.55';
+      ultButton.textContent = ultimateSystem.isActive
+        ? 'ОГИ!'
+        : `УЛЬТ\n${Math.floor(player.ultCharge)}%`;
+    }
   };
   refreshHud();
 
@@ -148,6 +193,8 @@ async function boot(): Promise<void> {
       combat.updateStatuses(dt);
       playerSystem.update(dt);
       enemySystem.update(dt);
+      ultimateSystem.update(dt);
+      if (state.autoUlt && ultimateSystem.canActivate()) ultimateSystem.tryActivate();
       projectileSystem.update(dt);
       camera.follow(state.player, dt);
       camera.update(dt);
@@ -171,6 +218,21 @@ async function boot(): Promise<void> {
       vfxRenderer.update(frameDt);
       floatingText.update(frameDt);
     },
+  });
+
+  window.addEventListener('keydown', (event) => {
+    if (event.repeat) return;
+    const target = event.target;
+    if (target instanceof Element && target.closest('input, textarea, select')) return;
+    if (event.code === 'KeyQ' || event.code === 'Space') {
+      event.preventDefault();
+      ultimateSystem.tryActivate();
+    } else if (event.code === 'KeyU') {
+      // Временный dev-хоткей: мгновенно открыть ульту 50 уровня.
+      state.player.level = 50;
+      state.player.ultUnlocked = true;
+      state.player.ultCharge = 100;
+    }
   });
 
   joystick.setEnabled(true);
